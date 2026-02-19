@@ -68,7 +68,7 @@ def llm_function(model,tokenizer,questions):
 
         # ---- Answer 1 ----
         #todo: remove
-        #print(f"Q1: {q1} Q2: {q2} Q3: {q3}\n    {q1}")
+        print(f"Q1: {q1} Q2: {q2} Q3: {q3}\n    {q1}")
         input_ids_1 = tokenizer(q1, return_tensors="pt", truncation=True).input_ids
         output_1 = model.generate(
             input_ids_1,
@@ -76,11 +76,12 @@ def llm_function(model,tokenizer,questions):
             do_sample=False
         )
         ans1 = tokenizer.decode(output_1[0], skip_special_tokens=True).strip()
+        
 
         # ---- Answer 2 (one-shot with ans1) ----
         prompt_2 = f"Question: {q1}\nAnswer: {ans1}\n\nQuestion: {q2}\nAnswer:"
         #todo: remove
-        #print(f"   {prompt_2}")
+        print(f"   {prompt_2}")
         input_ids_2 = tokenizer(prompt_2, return_tensors="pt", truncation=True).input_ids
         output_2 = model.generate(
             input_ids_2,
@@ -90,8 +91,8 @@ def llm_function(model,tokenizer,questions):
         ans2 = tokenizer.decode(output_2[0], skip_special_tokens=True).strip()
 
         # ---- Answer 3 (deterministic YES/NO) ----
-        prompt_3 = f"<Context>\nQuestion:{q1}\nAnswer:{ans1}\nQuestion:{q2}\nAnswer:{ans2}\n</Context>\nUse the details under <Context> to answer the Question with 'YES' or 'NO' only:\nQuestion:{q3}\nAns:"
-        # todo: remove
+        prompt_3 = f"<Context>\n{q2}\nAnswer:{ans2}\n</Context>\nUse the details under <Context> to answer the Question with 'YES' or 'NO' only\n: {q3}\n"
+        #todo: remove
         print(f"    {prompt_3}")
         input_ids_3 = tokenizer(prompt_3, return_tensors="pt", truncation=True).input_ids
         output_3 = model.generate(input_ids_3, do_sample=False,  top_p=None, return_dict_in_generate=True, output_scores=True, max_new_tokens=2)
@@ -103,6 +104,16 @@ def llm_function(model,tokenizer,questions):
 
         logit_y = logit_stack[0][0][yes].item()
         logit_n = logit_stack[0][0][no].item()
+
+        output_4 = model.generate(
+            input_ids_3,
+            max_new_tokens=20,
+            do_sample=False
+        )
+        ans4 = tokenizer.decode(output_4[0], skip_special_tokens=True, max_new_tokens=2).strip()
+        print(f"{ans4}")
+        final_output = ans4
+
 
         final_output = "YES" if logit_y > logit_n else "NO"
         print(f"{(time.perf_counter() - start)}")

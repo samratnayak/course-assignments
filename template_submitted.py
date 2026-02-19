@@ -61,8 +61,8 @@ def llm_function(model,tokenizer,questions):
 
     with torch.inference_mode():
         #todo: remove
-        import time 
-        start = time.perf_counter()
+        #import time 
+        #start = time.perf_counter()
 
         q1, q2, q3 = questions
 
@@ -90,9 +90,9 @@ def llm_function(model,tokenizer,questions):
         ans2 = tokenizer.decode(output_2[0], skip_special_tokens=True).strip()
 
         # ---- Answer 3 (deterministic YES/NO) ----
-        prompt_3 = f"<Context>\nQuestion:{q1}\nAnswer:{ans1}\nQuestion:{q2}\nAnswer:{ans2}\n</Context>\nUse the details under <Context> to answer the Question with 'YES' or 'NO' only:\nQuestion:{q3}\nAns:"
-        # todo: remove
-        print(f"    {prompt_3}")
+        prompt_3 = f"<Context>\n{q2}\nAnswer:{ans2}\n</Context>\nUse the details under <Context> to answer the Question with 'YES' or 'NO' only:\nQuestion:{q3}\nAns:"
+        #todo: remove
+        #print(f"    {prompt_3}")
         input_ids_3 = tokenizer(prompt_3, return_tensors="pt", truncation=True).input_ids
         output_3 = model.generate(input_ids_3, do_sample=False,  top_p=None, return_dict_in_generate=True, output_scores=True, max_new_tokens=2)
         logit_stack = torch.stack(output_3.scores, dim=1)
@@ -105,7 +105,7 @@ def llm_function(model,tokenizer,questions):
         logit_n = logit_stack[0][0][no].item()
 
         final_output = "YES" if logit_y > logit_n else "NO"
-        print(f"{(time.perf_counter() - start)}")
+        #print(f"{(time.perf_counter() - start)}")
 
     return final_output
 

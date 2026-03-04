@@ -59,8 +59,8 @@ def llm_function(model,tokenizer,context,question):
     Remember that there should be no additional output including any warning messages in the terminal.
     '''
     #todo: remove
-    #import time 
-    #start = time.perf_counter()
+    import time 
+    start = time.perf_counter()
 
     prompt = f"Context: {context}\nQuestion: {question}\nThink carefully based on the information in context and Answer ONLY with Yes or No:"
     inputs = tokenizer(prompt, return_tensors="pt").input_ids
@@ -85,7 +85,7 @@ def llm_function(model,tokenizer,context,question):
     # print(f"output: {tokenizer.decode(outputs[0], skip_special_tokens=True).strip()}")
 
     #todo: delete
-    #print(f"{(time.perf_counter() - start)}")
+    print(f"{(time.perf_counter() - start)}")
 
     # 4. Format the output to be exactly YES or NO 
     return final_output

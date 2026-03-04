@@ -47,31 +47,35 @@ transformers.utils.logging.disable_progress_bar()
 """
 
 def llm_function(model, tokenizer, context, question): 
-    # 1. Engineer the prompt using the query and the context [cite: 12, 13, 17]
-    # Flan-T5 responds well to structured instructions
-    prompt = f"Context: {context}\nQuestion: {question}\nAnswer with YES or NO:"
+    
+    #todo: remove
+    import time 
+    start = time.perf_counter()
 
-    # 2. Tokenize the prompt [cite: 5]
-    inputs = tokenizer(prompt, return_tensors="pt")
+    prompt = f"Context: {context}\nQuestion: {question}\nThink carefully based on the information in context and Answer ONLY with Yes or No:"
+    inputs = tokenizer(prompt, return_tensors="pt").input_ids
 
-    # 3. Generate output for the prompt using logits 
-    # We look at the first generated token's logits to see if 'YES' or 'NO' is more likely
-    with torch.no_grad():
-        # decoder_input_ids starting with the pad_token_id is standard for T5 generation
-        outputs = model(input_ids=inputs.input_ids, 
-                        decoder_input_ids=torch.tensor([[model.config.pad_token_id]]))
-        logits = outputs.logits[0, -1, :] # Get logits for the first predicted token
+    #todo: remove
+    # print(f"prompt: {prompt}\n")
 
-    # Map the tokens for 'YES' and 'NO'
-    # We use the tokenizer to find the specific IDs for these words
-    yes_token_id = tokenizer.encode("YES", add_special_tokens=False)[0]
-    no_token_id = tokenizer.encode("NO", add_special_tokens=False)[0]
+    # decoder_input_ids starting with the pad_token_id is standard for T5 generation
+    outputs = model.generate(input_ids=inputs, do_sample=False,  top_p=None, return_dict_in_generate=True, output_scores=True, max_new_tokens=1)
+    logit_stack = torch.stack(outputs.scores, dim=1)
 
-    # Compare the logit scores for both tokens 
-    if logits[yes_token_id] > logits[no_token_id]:
-        final_output = "YES"
-    else:
-        final_output = "NO"
+    yes = tokenizer.encode("Yes", return_tensors="pt", add_special_tokens=False)[0].item()
+    no = tokenizer.encode("No", return_tensors="pt", add_special_tokens=False)[0].item()
+
+    logit_y = logit_stack[0][0][yes].item()
+    logit_n = logit_stack[0][0][no].item()
+
+    final_output = "YES" if logit_y > logit_n else "NO"
+
+    #todo: delete
+    # outputs = model.generate(input_ids=inputs, max_new_tokens=1)
+    # print(f"output: {tokenizer.decode(outputs[0], skip_special_tokens=True).strip()}")
+
+    #todo: delete
+    print(f"{(time.perf_counter() - start)}")
 
     # 4. Format the output to be exactly YES or NO 
     return final_output

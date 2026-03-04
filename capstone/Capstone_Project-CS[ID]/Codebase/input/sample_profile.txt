@@ -1,0 +1,58 @@
+John Doe
+Email: john.doe@email.com
+Phone: +1-555-123-4567
+Address: 123 Main Street, New York, NY 10001
+
+EDUCATION
+Bachelor of Science in Computer Science
+State University, New York
+Graduated: May 2020
+GPA: 3.8/4.0
+
+WORK EXPERIENCE
+Software Engineer
+Tech Solutions Inc., New York, NY
+June 2020 - Present
+- Developed and maintained web applications using Python and JavaScript
+- Collaborated with cross-functional teams to deliver high-quality software
+- Implemented RESTful APIs and database solutions
+- Participated in agile development processes
+
+Intern - Software Development
+StartupXYZ, New York, NY
+May 2019 - August 2019
+- Assisted in developing mobile applications
+- Learned React Native and Node.js
+- Contributed to code reviews and testing
+
+SKILLS
+Programming Languages: Python, JavaScript, Java, C++
+Web Technologies: React, Node.js, HTML, CSS
+Databases: MySQL, PostgreSQL, MongoDB
+Tools: Git, Docker, AWS, Jenkins
+Frameworks: Django, Flask, Express.js
+
+PROJECTS
+E-Commerce Platform
+- Built a full-stack e-commerce application using React and Node.js
+- Implemented payment gateway integration
+- Deployed on AWS with CI/CD pipeline
+
+Machine Learning Classifier
+- Developed a sentiment analysis model using Python and TensorFlow
+- Achieved 85% accuracy on test dataset
+- Published results in university research journal
+
+CERTIFICATIONS
+AWS Certified Solutions Architect - Associate (2021)
+Google Cloud Professional Cloud Architect (2022)
+
+LANGUAGES
+English: Native
+Spanish: Conversational
+French: Basic
+
+ACHIEVEMENTS
+Dean's List: Fall 2018, Spring 2019, Fall 2019
+Hackathon Winner: University Tech Challenge 2019
+Best Project Award: Senior Capstone Project 2020

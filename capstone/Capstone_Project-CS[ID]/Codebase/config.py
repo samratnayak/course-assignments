@@ -14,7 +14,11 @@ class Config:
     """Configuration class for CV Creation project."""
     
     # Model Configuration
-    model_name: str = "google/flan-t5-xl"  # Default model, can be changed
+    # Primary: Gemma 3 1B via Ollama (if available)
+    # Secondary: Flan-T5-XL as backup
+    model_name: str = "google/flan-t5-xl"  # Flan-T5-XL model
+    ollama_model: str = "gemma2:1b"  # Ollama model name
+    ollama_url: str = "http://localhost:11434"  # Ollama API URL
     device: str = "cpu"  # Will be set in __post_init__
     torch_dtype: str = "float32"  # Will be adjusted based on device
     
@@ -26,7 +30,7 @@ class Config:
     do_sample: bool = True
     num_return_sequences: int = 1
     
-    # Paths
+    # Paths - All files in Codebase directory (no subdirectories per instructions)
     base_dir: str = os.path.dirname(os.path.abspath(__file__))
     input_dir: str = os.path.join(base_dir, "input")
     output_dir: str = os.path.join(base_dir, "output")

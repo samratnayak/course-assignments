@@ -1,1 +1,1 @@
-python main.py
+python main.py input/sample_profile.txt -o output/cv_output.docx -f docx

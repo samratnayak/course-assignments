@@ -1,11 +1,27 @@
+# Core LLM Libraries
 torch>=2.0.0
 transformers>=4.30.0
 huggingface-hub>=0.15.0
+
+# Ollama for Gemma 3 1B
+ollama>=0.1.0
+
+# LangChain for orchestration
+langchain>=0.1.0
+langchain-community>=0.0.20
+
+# Document Processing
+pdfplumber>=0.10.0
+python-docx>=1.0.0
+PyPDF2>=3.0.0
+openpyxl>=3.1.0
+
+# Text Processing
 sentencepiece>=0.1.99
 tokenizers>=0.13.0
+
+# Utilities
 numpy>=1.24.0
 pandas>=2.0.0
-PyPDF2>=3.0.0
-python-docx>=1.0.0
-openpyxl>=3.1.0
 tqdm>=4.65.0
+requests>=2.31.0

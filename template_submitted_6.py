@@ -57,54 +57,44 @@ def llm_function(model,tokenizer,questions):
     4. Return strictly YES or NO (uppercase).
     '''
 
-    # if not torch.cuda.is_available():
-    #     model = torch.quantization.quantize_dynamic(
-    #         model,
-    #         {torch.nn.Linear},
-    #         dtype=torch.qint8
-    #     )
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
-
     model.eval()
 
     with torch.inference_mode():
         #todo: remove
-        import time 
-        start = time.perf_counter()
+        #import time 
+        #start = time.perf_counter()
 
         q1, q2, q3 = questions
 
         # ---- Answer 1 ----
         #todo: remove
         #print(f"Q1: {q1} Q2: {q2} Q3: {q3}\n    {q1}")
-        prompt_1 = f"Question:{q1}\n**Provide descriptive answer it in 20 words**\nAns:"
-        input_ids_1 = tokenizer(prompt_1, return_tensors="pt", truncation=True).input_ids.to(model.device)
+        prompt_1 = f"Question:{q1}\nAnswer step by step in 20 words:"
+        input_ids_1 = tokenizer(prompt_1, return_tensors="pt", truncation=True).input_ids
         output_1 = model.generate(
             input_ids_1,
-            max_new_tokens=40,
+            max_new_tokens=30,
             do_sample=False
         )
         ans1 = tokenizer.decode(output_1[0], skip_special_tokens=True).strip()
 
         # ---- Answer 2 (one-shot with ans1) ----
-        prompt_2 = f"{prompt_1}{ans1}\nQuestion: {q2}\n(Provide step by step Answer in 20 words)\nAns:"
+        prompt_2 = f"{prompt_1}{ans1}\nQuestion: {q2}\nAnswer:"
         #todo: remove
         #print(f"   {prompt_2}")
-        input_ids_2 = tokenizer(prompt_2, return_tensors="pt", truncation=True).input_ids.to(model.device)
+        input_ids_2 = tokenizer(prompt_2, return_tensors="pt", truncation=True).input_ids
         output_2 = model.generate(
             input_ids_2,
-            max_new_tokens=50,
+            max_new_tokens=20,
             do_sample=False
         )
         ans2 = tokenizer.decode(output_2[0], skip_special_tokens=True).strip()
 
         # ---- Answer 3 (deterministic YES/NO) ----
-        prompt_3 = f"{prompt_2}{ans2}\nUse all the question-answer details above and your general awareness to answer the following Question with 'Yes' or 'No' only:\nQuestion:{q3}\nAns:"
+        prompt_3 = f"<Context>{prompt_2}{ans2}\n</Context>\nUse all the details under <Context> tag and your general awareness to answer the following Question with 'Yes' or 'No' only:\nQuestion:{q3}\nAns:"
         #todo: remove
-        #print(f"    {prompt_3}")
-        input_ids_3 = tokenizer(prompt_3, return_tensors="pt", truncation=True).input_ids.to(model.device)
+        print(f"    {prompt_3}")
+        input_ids_3 = tokenizer(prompt_3, return_tensors="pt", truncation=True).input_ids
         output_3 = model.generate(input_ids_3, do_sample=False,  top_p=None, return_dict_in_generate=True, output_scores=True, max_new_tokens=2)
         logit_stack = torch.stack(output_3.scores, dim=1)
 
@@ -116,7 +106,7 @@ def llm_function(model,tokenizer,questions):
         logit_n = logit_stack[0][0][no].item()
 
         final_output = "YES" if logit_y > logit_n else "NO"
-        print(f"{(time.perf_counter() - start)}")
+        #print(f"{(time.perf_counter() - start)}")
 
     return final_output
 

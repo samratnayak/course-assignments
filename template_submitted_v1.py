@@ -90,7 +90,7 @@ def llm_function(model,tokenizer,questions):
         ans2 = tokenizer.decode(output_2[0], skip_special_tokens=True).strip()
 
         # ---- Answer 3 (deterministic YES/NO) ----
-        prompt_3 = f"<Context>\n{q2}\nAnswer:{ans2}\n</Context>\nUse the details under <Context> to answer the Question with 'YES' or 'NO' only:\nQuestion:{q3}\nAns:"
+        prompt_3 = f"<Context>Question:\n{q2}\nAnswer:{ans2}\n</Context>\nUse the details under <Context> to answer the Question with 'YES' or 'NO' only:\nQuestion:{q3}\nAns:"
         #todo: remove
         #print(f"    {prompt_3}")
         input_ids_3 = tokenizer(prompt_3, return_tensors="pt", truncation=True).input_ids

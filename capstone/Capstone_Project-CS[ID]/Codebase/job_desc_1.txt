@@ -1,0 +1,27 @@
+Position Summary:  
+The Senior Director, Software Engineering, leads the development and implementation of software solutions aligned with business goals. This role involves requirement analysis, solution design, coding oversight, testing, and program monitoring to ensure high-quality, scalable, and secure products. The position requires expertise in software architecture, agile methodologies, cloud computing, and technical leadership. Responsibilities include guiding teams in prioritizing features, managing project scopes, and ensuring adherence to coding and security standards. The Senior Director collaborates across functions to address product enhancements and operational challenges, driving continuous improvement and delivering value through effective project management and strategic decision-making.
+
+About Team  
+The team is responsible for comprehensive requirement analysis, solution design, coding, testing, and program monitoring across multiple products. It ensures alignment with business objectives by evaluating feasibility, prioritizing features, and managing risks. The team focuses on creating scalable, secure, and maintainable software solutions using appropriate technologies and frameworks. It leads testing efforts to verify functionality and performance, manages defect resolution, and oversees application monitoring and maintenance. Collaboration with stakeholders is essential to deliver solutions that meet customer needs while maintaining high standards of quality, security, and operational efficiency. The team continuously works to improve processes and product outcomes.
+
+What You Will Do  
+- Lead requirement analysis and align solutions with business objectives.  
+- Oversee solution design ensuring modular, scalable, and secure architecture.  
+- Guide coding practices and frameworks to support high-quality software delivery.  
+- Manage testing strategies and defect resolution to ensure product reliability.  
+- Monitor program metrics and drive continuous integration and deployment.  
+- Facilitate root cause analysis and corrective actions for product issues.  
+- Establish application monitoring and maintenance processes.  
+- Collaborate with stakeholders to prioritize features and enhancements.  
+- Promote adherence to compliance, security standards, and company policies.  
+- Support talent development and maintain high ethical standards across teams.
+
+What You Will Bring:  
+- Proven expertise in software engineering and solution design, including software architecture and cloud computing.  
+- Strong capability in applying business strategies to align software solutions with organizational goals.  
+- Experience leading technical teams and managing complex projects using Agile methodology.  
+- Proficiency in analyzing data to guide decision-making and prioritize product requirements.  
+- Ability to oversee end-to-end software development lifecycle ensuring scalability, security, and performance.  
+- Skilled in risk analysis, cost estimation, and requirement scoping for multiple products.  
+- Knowledge of continuous integration/deployment and defect management processes.  
+- Excellent communication and leadership skills to guide cross-functional teams effectively.

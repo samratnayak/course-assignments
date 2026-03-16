@@ -44,20 +44,26 @@ pip install -r requirements.txt
 
 ### 2. Setup Ollama (Optional but Recommended)
 
-For using Gemma 3 1B model:
+For using Mistral 7B model (recommended for better extraction quality):
 
 ```bash
-# Install Ollama (if not already installed)
-# Visit: https://ollama.ai/
+# Install Ollama
+curl -fsSL https://ollama.com/install.sh | sh
 
-# Pull Gemma 2 1B model
-ollama pull gemma2:1b
+# Pull and run Mistral 7B model
+ollama run mistral
 
-# Start Ollama service (usually runs automatically)
-# Verify: curl http://localhost:11434/api/tags
+# Start Ollama service (if not already running)
+ollama serve
+
+# Verify it's running (in another terminal)
+curl http://localhost:11434/api/tags
 ```
 
-**Note**: If Ollama is not available, the system will automatically use Flan-T5-XL as the primary model.
+**Note**: 
+- Mistral 7B provides better extraction quality than smaller models while remaining fast
+- If Ollama is not available, the system will automatically use Flan-T5-XL as the primary model
+- The model will be downloaded on first run (may take a few minutes, ~4GB)
 
 ### 3. Run the Application
 
@@ -114,7 +120,7 @@ python main.py input/resume.pdf -o output/cv_from_pdf.docx
 ### Step-by-Step Process
 
 1. **Document Extraction**: Extracts text from input files (PDF/Word/TXT)
-2. **Model Loading**: Loads Ollama (Gemma) and Flan-T5-XL models
+2. **Model Loading**: Loads Ollama (Mistral 7B) and Flan-T5-XL models for extraction, GPT-4o for optimization
 3. **Resume Data Extraction**: Uses LLM to extract structured information
 4. **Job Description Parsing** (optional): Parses job requirements for tailoring
 5. **CV Generation**: Generates ATS-optimized CV sections using LLMs
@@ -122,27 +128,34 @@ python main.py input/resume.pdf -o output/cv_from_pdf.docx
 
 ### LLM Models Used
 
-1. **Gemma 3 1B (via Ollama)**: 
-   - Lightweight, open-source model
+1. **Mistral 7B (via Ollama)**: 
+   - High-quality, open-source model
    - Ideal for local, privacy-centric deployment
-   - Primary model when available
+   - Better extraction quality than smaller models
+   - Primary model for LLM 1 (extraction) when available
 
 2. **Flan-T5-XL**:
    - Versatile instruction-following model
-   - Used as secondary/backup model
+   - Used as backup for LLM 1 (extraction)
    - Ensures system works even without Ollama
+
+3. **GPT-4o (OpenAI)**:
+   - State-of-the-art optimization model
+   - Used for LLM 2 (resume optimization)
+   - Best cost-performance ratio for high-quality writing
 
 ### Model Justification
 
-- **Gemma 3 1B**: Chosen for its efficiency and local deployment capability, making it ideal for privacy-sensitive CV generation tasks.
-- **Flan-T5-XL**: Selected as a robust backup model with strong instruction-following capabilities, ensuring reliability and consistent output quality.
+- **Mistral 7B**: Chosen for its excellent balance of quality and efficiency, providing better extraction accuracy than smaller models while maintaining fast inference for privacy-sensitive CV generation tasks.
+- **Flan-T5-XL**: Selected as a robust backup model with strong instruction-following capabilities, ensuring reliability and consistent output quality when Ollama is unavailable.
+- **GPT-4o**: Selected for resume optimization due to its superior writing quality, instruction-following, and cost-effectiveness compared to other GPT-4 variants.
 
 ## Requirements
 
 - Python 3.8+
 - PyTorch 2.0+
 - Transformers library
-- Ollama (optional, for Gemma model)
+- Ollama (optional, for Mistral 7B model)
 - CUDA (optional, for GPU acceleration)
 
 ## Notes

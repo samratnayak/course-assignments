@@ -6,7 +6,8 @@ Extracts: personal details, education, work history, skills, achievements, and p
 """
 
 import json
-from typing import Dict, Optional
+import re
+from typing import Dict, Optional, List
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -28,7 +29,8 @@ class ResumeExtractor:
     
     def create_extraction_prompt(self, text: str) -> str:
         """
-        Create a prompt for extracting resume information.
+        Create a prompt for extracting resume information (LLM 1 - Fast Model).
+        Focuses on extracting skills and requirements in structured JSON format.
         
         Args:
             text: Unstructured resume text
@@ -36,48 +38,110 @@ class ResumeExtractor:
         Returns:
             Formatted prompt string
         """
-        prompt = f"""Extract the following fields from this resume text and return them in a structured format:
+        prompt = f"""Extract skills and requirements from this resume text. Return a JSON-like structure:
 
 Resume Text:
 {text}
 
-Please extract and structure the following information:
-1. Name
-2. Contact Information (Email, Phone, Address)
-3. Education (Degree, Institution, Year, GPA if available)
-4. Work Experience (Job Title, Company, Duration, Responsibilities)
-5. Skills (Technical and Soft Skills)
-6. Achievements/Awards
-7. Projects (Name, Description, Technologies used)
-8. Certifications
-9. Languages
+Extract and return in this exact format:
+{{
+  "skills": ["Python", "Machine Learning", "Docker"],
+  "tools": ["TensorFlow", "Git", "AWS"],
+  "soft_skills": ["communication", "teamwork", "leadership"],
+  "name": "Full Name",
+  "contact": {{
+    "email": "email@example.com",
+    "phone": "+1234567890"
+  }},
+  "education": ["Degree, Institution, Year"],
+  "experience": ["Job Title, Company, Duration"],
+  "projects": ["Project Name - Description"]
+}}
 
-Format the output as a clear, structured text that can be easily parsed."""
+Focus on extracting ALL skills, tools, and technologies mentioned. Be comprehensive."""
         
         return prompt
     
     def extract_resume_data(self, text: str) -> Dict:
         """
-        Extract structured resume data from unstructured text using LLM.
+        Extract structured resume data from unstructured text using LLM 1 (Fast Model).
         
         Args:
             text: Unstructured resume text
             
         Returns:
-            Dictionary containing extracted resume information
+            Dictionary containing extracted resume information with structured skills
         """
         # Create extraction prompt
         prompt = self.create_extraction_prompt(text)
         
-        # Use LLM to extract information
+        # Use LLM 1 (fast model) to extract information
         try:
-            extracted_text = self.llm_model.generate_text(prompt)
+            extracted_text = self.llm_model.generate_text(prompt, max_new_tokens=512)
         except Exception as e:
             print(f"Warning: LLM extraction failed, using fallback parsing: {e}")
             extracted_text = ""
         
-        # Parse the extracted text into structured format
-        structured_data = self._parse_extracted_text(extracted_text, text)
+        # Try to parse JSON from LLM output
+        structured_data = self._parse_json_extraction(extracted_text, text)
+        
+        # Fallback to text parsing if JSON parsing fails
+        if not structured_data.get("skills"):
+            structured_data = self._parse_extracted_text(extracted_text, text)
+        
+        return structured_data
+    
+    def _parse_json_extraction(self, extracted_text: str, original_text: str) -> Dict:
+        """
+        Parse JSON-like output from LLM extraction.
+        
+        Args:
+            extracted_text: LLM output text
+            original_text: Original resume text for fallback
+            
+        Returns:
+            Structured dictionary
+        """
+        structured_data = {
+            "name": "",
+            "contact": {"email": "", "phone": "", "address": ""},
+            "education": [],
+            "experience": [],
+            "skills": [],
+            "tools": [],
+            "soft_skills": [],
+            "achievements": [],
+            "projects": [],
+            "certifications": [],
+            "languages": []
+        }
+        
+        # Try to extract JSON from the text
+        json_match = re.search(r'\{[^{}]*\}', extracted_text, re.DOTALL)
+        if json_match:
+            try:
+                json_str = json_match.group(0)
+                parsed = json.loads(json_str)
+                
+                # Map parsed data to structured format
+                structured_data["skills"] = parsed.get("skills", [])
+                structured_data["tools"] = parsed.get("tools", [])
+                structured_data["soft_skills"] = parsed.get("soft_skills", [])
+                structured_data["name"] = parsed.get("name", "")
+                
+                if "contact" in parsed:
+                    structured_data["contact"].update(parsed["contact"])
+                
+                structured_data["education"] = parsed.get("education", [])
+                structured_data["experience"] = parsed.get("experience", [])
+                structured_data["projects"] = parsed.get("projects", [])
+                
+            except json.JSONDecodeError:
+                pass  # Fall back to text parsing
+        
+        # Combine all skills into a single list for easier processing
+        all_skills = structured_data["skills"] + structured_data["tools"]
+        structured_data["all_skills"] = all_skills
         
         return structured_data
     

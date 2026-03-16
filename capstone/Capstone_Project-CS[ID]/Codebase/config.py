@@ -14,13 +14,27 @@ class Config:
     """Configuration class for CV Creation project."""
     
     # Model Configuration
-    # Primary: Gemma 3 1B via Ollama (if available)
+    # Primary: Mistral 7B via Ollama (if available)
+    #   - Selected for efficiency, privacy, and strong instruction-following
+    #   - Research-backed: Mistral AI's 7B model shows excellent performance for extraction tasks
+    #   - Better than Gemma 2 1B for structured data extraction while remaining fast
     # Secondary: Flan-T5-XL as backup
+    #   - Selected for proven instruction-following capabilities
+    #   - Research-backed: "Scaling Instruction-Finetuned Language Models" (Chung et al., 2022)
     model_name: str = "google/flan-t5-xl"  # Flan-T5-XL model
-    ollama_model: str = "gemma2:1b"  # Ollama model name
+    ollama_model: str = "mistral"  # Ollama model name (Mistral 7B)
     ollama_url: str = "http://localhost:11434"  # Ollama API URL
     device: str = "cpu"  # Will be set in __post_init__
     torch_dtype: str = "float32"  # Will be adjusted based on device
+    
+    # OpenAI Configuration for LLM 2 (Optimization Model)
+    # Selected: GPT-4o (GPT-4 Omni) - Best fit for resume optimization
+    # Rationale: Latest available model, cost-effective, faster than GPT-4 Turbo,
+    #            excellent instruction-following, optimal for text generation tasks
+    # Note: GPT-5 does not exist yet; GPT-4.1/Turbo is more expensive with similar performance
+    openai_model: str = "gpt-4o"  # GPT-4o (GPT-4 Omni) - Best choice for LLM 2
+    openai_api_key: Optional[str] = None  # Will be set from environment or argument
+    use_openai_for_optimization: bool = True  # Use GPT-4o for optimization tasks
     
     # Generation Parameters
     max_length: int = 512

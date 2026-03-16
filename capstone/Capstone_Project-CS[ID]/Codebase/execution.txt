@@ -1,1 +1,8 @@
+# Basic execution (requires OPENAI_API_KEY environment variable)
 python main.py input/sample_profile.txt -o output/cv_output.docx -f docx
+
+# With OpenAI API key as argument
+# python main.py input/sample_profile.txt --api-key "your-api-key" -o output/cv_output.docx -f docx
+
+# With job description
+# python main.py input/sample_profile.txt -j job_description.txt --api-key "your-api-key" -o output/cv_output.docx -f docx

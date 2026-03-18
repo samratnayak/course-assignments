@@ -51,7 +51,7 @@ Extract and return in this exact format:
   "name": "Full Name of the Candidate (first line of resume, not project names)",
   "contact": {{
     "email": "email@example.com",
-    "phone": "+1234567890"
+    "phone": "1234567890"
   }},
   "education": ["Degree, Institution, Year"],
   "experience": ["Job Title, Company, Duration"],
@@ -62,6 +62,8 @@ IMPORTANT:
 - Extract the candidate's FULL NAME from the first line or header of the resume
 - Do NOT confuse project names or section headers with the candidate name
 - The name is typically the first line before contact information
+- For phone numbers: Use the EXACT format from the input. Do NOT add country codes, ISD codes (like +1, +91, +44), or '+' prefix. 
+  If the input shows '8866835339', extract it as '8866835339' without adding any country code.
 - Focus on extracting ALL skills, tools, and technologies mentioned. Be comprehensive."""
         
         return prompt

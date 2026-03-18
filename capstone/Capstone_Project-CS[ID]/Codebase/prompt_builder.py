@@ -215,6 +215,8 @@ class PromptBuilder:
             instructions = PromptBuilder._get_projects_instructions()
         elif section_name == "Certifications":
             instructions = PromptBuilder._get_certifications_instructions()
+        elif section_name == "Languages":
+            instructions = PromptBuilder._get_languages_instructions()
         
         return instructions
     
@@ -232,7 +234,9 @@ class PromptBuilder:
             "Format as plain text (NO headings, NO labels, NO placeholders, just the actual information):\n"
             "Name\n"
             "Email\n"
-            "Phone\n"
+            "Phone (CRITICAL: Use the EXACT phone number format from the input. Do NOT add country codes, "
+            "ISD codes, or formatting like +1, +91, etc. If the input shows '8867830338', output it as '8867830338' "
+            "or with the same formatting as provided. Do NOT add '+' prefix or country codes.)\n"
             "LinkedIn URL (ONLY include if actually provided in candidate data - "
             "if not provided, omit this line entirely)\n"
             "Address (ONLY include if actually provided in candidate data - "
@@ -296,6 +300,17 @@ class PromptBuilder:
             "List ONLY the certifications provided. Do NOT include the candidate's name. "
             "Format as: Certification Name (Year) or "
             "Certification Name - Issuing Organization (Year).\n\n"
+        )
+    
+    @staticmethod
+    def _get_languages_instructions() -> str:
+        """Get instructions for Languages section."""
+        return (
+            "CRITICAL: List ONLY spoken and written communication languages (e.g., English, Spanish, French, Hindi, etc.). "
+            "Do NOT include programming languages (e.g., Java, Python, JavaScript, SQL, etc.). "
+            "Do NOT include technologies, frameworks, or tools. "
+            "For each language, include proficiency level if provided (e.g., Native, Fluent, Professional, Conversational). "
+            "Format as: Language Name (Proficiency Level) or just Language Name if no proficiency is specified.\n\n"
         )
     
     @staticmethod

@@ -51,6 +51,10 @@ class ContentCleaner:
         if section_name == "Personal Information":
             content = ContentCleaner._clean_personal_information(content)
         
+        # Step 2b: Special cleaning for Languages section
+        if section_name == "Languages":
+            content = ContentCleaner._clean_languages_section(content)
+        
         # Step 3: Remove markdown and quotes
         content = ContentCleaner._remove_markdown_and_quotes(content)
         
@@ -296,3 +300,78 @@ class ContentCleaner:
                 return True
         
         return False
+    
+    @staticmethod
+    def _clean_languages_section(content: str) -> str:
+        """
+        Clean Languages section - remove programming languages and technologies.
+        
+        Args:
+            content: Content to clean
+            
+        Returns:
+            Cleaned content with only spoken/written languages
+        """
+        import re
+        
+        # Common programming languages and technologies to remove
+        programming_languages = [
+            r'\bjava\b', r'\bpython\b', r'\bjavascript\b', r'\btypescript\b',
+            r'\bc\+\+\b', r'\bc#\b', r'\bgo\b', r'\brust\b', r'\bkotlin\b',
+            r'\bswift\b', r'\bphp\b', r'\bruby\b', r'\bperl\b', r'\bscala\b',
+            r'\bsql\b', r'\bhtml\b', r'\bcss\b', r'\bxml\b', r'\bjson\b',
+            r'\breact\b', r'\bangular\b', r'\bvue\b', r'\bnode\.js\b',
+            r'\bspring\b', r'\bspringboot\b', r'\bdjango\b', r'\bflask\b',
+            r'\bspark\b', r'\bhadoop\b', r'\bkafka\b', r'\bcassandra\b',
+            r'\bredis\b', r'\bmongodb\b', r'\bmysql\b', r'\bpostgresql\b',
+            r'\bdocker\b', r'\bkubernetes\b', r'\baws\b', r'\bazure\b',
+            r'\bgcp\b', r'\bterraform\b', r'\bansible\b', r'\bjenkins\b',
+            r'\bgit\b', r'\bgithub\b', r'\bgitlab\b', r'\bjira\b',
+            r'\bmachine learning\b', r'\bdeep learning\b', r'\bai\b',
+            r'\bdata science\b', r'\bprompt engineering\b', r'\bopenai\b',
+            r'\bllm\b', r'\bapi\b', r'\brest\b', r'\bmicroservices\b',
+            r'\bcloud\b', r'\bdevops\b', r'\bci/cd\b', r'\bagile\b',
+            r'\bscrum\b', r'\bcontainers\b'
+        ]
+        
+        lines = content.split('\n')
+        cleaned_lines = []
+        
+        for line in lines:
+            line_lower = line.lower()
+            # Check if line contains programming language keywords
+            is_programming_lang = False
+            for pattern in programming_languages:
+                if re.search(pattern, line_lower):
+                    is_programming_lang = True
+                    break
+            
+            # Skip lines that are clearly about programming/technologies
+            if is_programming_lang:
+                continue
+            
+            # Also skip lines that mention "programming", "technology", "framework", etc.
+            skip_keywords = [
+                'programming', 'technology', 'framework', 'library', 'tool',
+                'platform', 'database', 'software', 'application', 'system',
+                'development', 'coding', 'scripting', 'experience with',
+                'proficient in', 'familiar with', 'extensive experience',
+                'building', 'developing', 'using', 'technologies such as'
+            ]
+            
+            if any(keyword in line_lower for keyword in skip_keywords):
+                # Check if it's actually about a spoken language (e.g., "English for professional communication")
+                spoken_lang_keywords = [
+                    'english', 'spanish', 'french', 'german', 'hindi',
+                    'chinese', 'japanese', 'korean', 'arabic', 'portuguese',
+                    'italian', 'russian', 'bengali', 'tamil', 'telugu',
+                    'marathi', 'gujarati', 'punjabi', 'urdu', 'oriya',
+                    'malayalam', 'kannada', 'communication', 'spoken',
+                    'written', 'fluent', 'native', 'bilingual', 'professional'
+                ]
+                if not any(lang in line_lower for lang in spoken_lang_keywords):
+                    continue
+            
+            cleaned_lines.append(line)
+        
+        return '\n'.join(cleaned_lines).strip()

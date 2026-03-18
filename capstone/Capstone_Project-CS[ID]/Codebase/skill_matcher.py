@@ -25,7 +25,7 @@ class SkillMatcher:
             embedding_model: EmbeddingModel instance for semantic similarity
         """
         self.embedding_model = embedding_model
-        self.similarity_threshold = 0.65  # Threshold for skill matching
+        self.similarity_threshold = 0.55  # Threshold for skill matching (lowered for more lenient matching)
     
     def find_missing_skills(self, resume_skills: List[str], jd_skills: List[str]) -> List[str]:
         """

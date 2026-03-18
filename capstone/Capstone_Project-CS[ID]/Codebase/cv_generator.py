@@ -70,153 +70,30 @@ The multi-model approach provides specialized capabilities for each pipeline sta
 - Efficient embedding model for semantic matching
 """
 
+import os
 import torch
 import transformers
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 from typing import Dict, List, Optional
 import warnings
-import requests
-import json
-import os
 
 warnings.filterwarnings("ignore")
 transformers.logging.set_verbosity_error()
 transformers.utils.logging.disable_progress_bar()
 
-# Try to import OpenAI (optional dependency)
-try:
-    from openai import OpenAI
-    OPENAI_AVAILABLE = True
-except ImportError:
-    OPENAI_AVAILABLE = False
-    print("Warning: OpenAI package not installed. GPT-4 optimization will not be available.")
-
-
-class OllamaModel:
-    """
-    Wrapper class for Ollama API (for Gemma 3 1B model).
-    """
-    
-    def __init__(self, model_name: str = "gemma2:1b", base_url: str = "http://localhost:11434"):
-        """
-        Initialize Ollama model.
-        
-        Args:
-            model_name: Name of the Ollama model
-            base_url: Base URL for Ollama API
-        """
-        self.model_name = model_name
-        self.base_url = base_url
-        self.available = self._check_availability()
-    
-    def _check_availability(self) -> bool:
-        """
-        Check if Ollama is available and running.
-        
-        Returns:
-            True if Ollama is available, False otherwise
-        """
-        try:
-            response = requests.get(f"{self.base_url}/api/tags", timeout=2)
-            return response.status_code == 200
-        except:
-            return False
-    
-    def generate_text(self, prompt: str, **kwargs) -> str:
-        """
-        Generate text using Ollama model.
-        
-        Args:
-            prompt: Input prompt
-            **kwargs: Additional generation parameters
-            
-        Returns:
-            Generated text
-        """
-        if not self.available:
-            raise RuntimeError("Ollama is not available. Please start Ollama service.")
-        
-        url = f"{self.base_url}/api/generate"
-        payload = {
-            "model": self.model_name,
-            "prompt": prompt,
-            "stream": False,
-            **kwargs
-        }
-        
-        try:
-            response = requests.post(url, json=payload, timeout=60)
-            response.raise_for_status()
-            result = response.json()
-            return result.get("response", "")
-        except Exception as e:
-            raise RuntimeError(f"Error calling Ollama API: {e}")
-
-
-class OpenAIModel:
-    """
-    Wrapper class for OpenAI API (for GPT-4.1 optimization model).
-    """
-    
-    def __init__(self, model_name: str = "gpt-4o", api_key: Optional[str] = None):
-        """
-        Initialize OpenAI model.
-        
-        Args:
-            model_name: Name of the OpenAI model (default: gpt-4o - GPT-4 Omni)
-            api_key: OpenAI API key (if None, will try to get from environment)
-        """
-        if not OPENAI_AVAILABLE:
-            raise RuntimeError("OpenAI package not installed. Install with: pip install openai")
-        
-        self.model_name = model_name
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
-        
-        if not self.api_key:
-            raise ValueError("OpenAI API key not provided. Set OPENAI_API_KEY environment variable or pass api_key parameter.")
-        
-        self.client = OpenAI(api_key=self.api_key)
-        self.available = True
-    
-    def generate_text(self, prompt: str, **kwargs) -> str:
-        """
-        Generate text using OpenAI model.
-        
-        Args:
-            prompt: Input prompt
-            **kwargs: Additional generation parameters (temperature, max_tokens, etc.)
-            
-        Returns:
-            Generated text
-        """
-        if not self.available:
-            raise RuntimeError("OpenAI model is not available.")
-        
-        # Default parameters for GPT-4
-        default_params = {
-            "temperature": kwargs.get("temperature", 0.7),
-            "max_tokens": kwargs.get("max_tokens", kwargs.get("max_new_tokens", 2000)),
-        }
-        default_params.update({k: v for k, v in kwargs.items() if k not in ["max_new_tokens"]})
-        
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=[
-                    {"role": "system", "content": "You are an expert ATS resume writer and career advisor."},
-                    {"role": "user", "content": prompt}
-                ],
-                **default_params
-            )
-            return response.choices[0].message.content.strip()
-        except Exception as e:
-            raise RuntimeError(f"Error calling OpenAI API: {e}")
+# Import refactored modules
+from llm_models import OllamaModel, OpenAIModel
+from prompt_builder import PromptBuilder
+from content_cleaner import ContentCleaner
 
 
 class CVGenerator:
     """
     Main class for generating CVs using multiple Large Language Models.
-    Uses Ollama (Gemma) as primary and Flan-T5-XL as secondary model.
+    
+    Uses:
+    - LLM 1 (Fast Model): Ollama (Mistral 7B) or Flan-T5-XL for extraction
+    - LLM 2 (Optimization Model): GPT-4o for resume optimization
     """
     
     def __init__(self, config):
@@ -230,10 +107,14 @@ class CVGenerator:
         self.ollama_model = None
         self.flan_model = None
         self.flan_tokenizer = None
-        self.openai_model = None  # LLM 2 - Optimization Model (GPT-4)
+        self.openai_model = None  # LLM 2 - Optimization Model (GPT-4o)
         self.device = torch.device(config.device)
         self.primary_model = None  # Will be set after loading (LLM 1 - Fast Model)
-        self.optimization_model = None  # Will be set after loading (LLM 2 - GPT-4)
+        self.optimization_model = None  # Will be set after loading (LLM 2 - GPT-4o)
+        
+        # Initialize helper modules
+        self.prompt_builder = PromptBuilder()
+        self.content_cleaner = ContentCleaner()
         
     def load_models(self):
         """
@@ -256,35 +137,34 @@ class CVGenerator:
             print(f"⚠ Could not connect to Ollama: {e}")
             self.ollama_model = None
         
-        # Load Flan-T5-XL as backup for LLM 1
-        print(f"Loading Flan-T5-XL model: {self.config.model_name}")
-        try:
-            self.flan_tokenizer = T5Tokenizer.from_pretrained(
-                self.config.model_name,
-                cache_dir=self.config.cache_dir
-            )
-            
-            self.flan_model = T5ForConditionalGeneration.from_pretrained(
-                self.config.model_name,
-                cache_dir=self.config.cache_dir,
-                torch_dtype=getattr(torch, self.config.torch_dtype) if hasattr(torch, self.config.torch_dtype) else torch.float32
-            )
-            
-            self.flan_model.to(self.device)
-            self.flan_model.eval()
-            
-            print("✓ Flan-T5-XL loaded successfully!")
-            
-            # Set Flan as primary if Ollama is not available
-            if not self.ollama_model or not self.ollama_model.available:
-                self.primary_model = "flan"
-            else:
-                self.primary_model = "ollama"  # Use Ollama as primary
+        # Load Flan-T5-XL as backup for LLM 1 (only if Ollama is not available)
+        if not self.ollama_model or not self.ollama_model.available:
+            print(f"Loading Flan-T5-XL model: {self.config.model_name} (Ollama not available, using backup)")
+            try:
+                self.flan_tokenizer = T5Tokenizer.from_pretrained(
+                    self.config.model_name,
+                    cache_dir=self.config.cache_dir
+                )
                 
-        except Exception as e:
-            print(f"Error loading Flan-T5-XL: {e}")
-            if not self.ollama_model or not self.ollama_model.available:
+                self.flan_model = T5ForConditionalGeneration.from_pretrained(
+                    self.config.model_name,
+                    cache_dir=self.config.cache_dir,
+                    torch_dtype=getattr(torch, self.config.torch_dtype) if hasattr(torch, self.config.torch_dtype) else torch.float32
+                )
+                
+                self.flan_model.to(self.device)
+                self.flan_model.eval()
+                
+                print("✓ Flan-T5-XL loaded successfully!")
+                self.primary_model = "flan"
+                
+            except Exception as e:
+                print(f"Error loading Flan-T5-XL: {e}")
                 raise RuntimeError("Neither Ollama nor Flan-T5-XL could be loaded for LLM 1!")
+        else:
+            print("✓ Ollama available - skipping Flan-T5-XL backup model")
+            self.flan_model = None
+            self.flan_tokenizer = None
         
         # Load LLM 2 (Optimization Model) - GPT-4o
         print("\n[LLM 2 - Optimization Model]")
@@ -312,7 +192,7 @@ class CVGenerator:
             print("Using LLM 1 for optimization (OpenAI disabled in config)")
             self.optimization_model = self.primary_model
     
-    def generate_text(self, prompt: str, use_primary: bool = True, **kwargs) -> str:
+    def generate_text(self, prompt: str, use_primary: bool = True, use_optimization_model: bool = False, **kwargs) -> str:
         """
         Generate text using the available LLM models.
         Uses primary model by default, falls back to secondary if needed.
@@ -320,15 +200,31 @@ class CVGenerator:
         Args:
             prompt: Input prompt for text generation
             use_primary: Whether to use primary model (default: True)
+            use_optimization_model: Whether to use optimization model (GPT-4o) instead (default: False)
             **kwargs: Additional generation parameters
             
         Returns:
             Generated text string
         """
+        # Use optimization model (GPT-4o) if requested
+        if use_optimization_model and self.openai_model and self.openai_model.available:
+            try:
+                # Filter out parameters that OpenAI doesn't need
+                openai_kwargs = {k: v for k, v in kwargs.items() if k not in ['use_optimization_model', 'max_new_tokens']}
+                # Convert max_new_tokens to max_tokens if present
+                if 'max_new_tokens' in kwargs:
+                    openai_kwargs['max_tokens'] = kwargs['max_new_tokens']
+                return self.openai_model.generate_text(prompt, **openai_kwargs)
+            except Exception as e:
+                print(f"OpenAI generation failed, falling back to primary model: {e}")
+                # Fall through to primary model
+        
         # Try primary model first
         if use_primary and self.primary_model == "ollama" and self.ollama_model and self.ollama_model.available:
             try:
-                return self.ollama_model.generate_text(prompt, **kwargs)
+                # Filter out parameters that Ollama doesn't need
+                ollama_kwargs = {k: v for k, v in kwargs.items() if k not in ['use_optimization_model', 'max_tokens']}
+                return self.ollama_model.generate_text(prompt, **ollama_kwargs)
             except Exception as e:
                 print(f"Ollama generation failed, falling back to Flan-T5-XL: {e}")
                 # Fall through to Flan-T5-XL
@@ -345,7 +241,18 @@ class CVGenerator:
             "do_sample": self.config.do_sample,
             "num_return_sequences": self.config.num_return_sequences,
         }
-        generation_kwargs.update(kwargs)
+        
+        # Filter out parameters that Flan-T5-XL doesn't accept
+        # Flan-T5-XL accepts: max_new_tokens, temperature, top_p, do_sample, num_return_sequences, etc.
+        # But NOT: use_optimization_model, max_tokens (use max_new_tokens instead)
+        filtered_kwargs = {k: v for k, v in kwargs.items() 
+                          if k not in ['use_optimization_model', 'max_tokens']}
+        
+        # Convert max_tokens to max_new_tokens if present
+        if 'max_tokens' in kwargs:
+            filtered_kwargs['max_new_tokens'] = kwargs['max_tokens']
+        
+        generation_kwargs.update(filtered_kwargs)
         
         # Tokenize input
         inputs = self.flan_tokenizer(
@@ -380,7 +287,7 @@ class CVGenerator:
             job_requirements: Optional job description data for tailoring
             
         Returns:
-            Generated CV section text
+            Generated CV section text (cleaned, without section title)
         """
         # Create prompt for the section
         prompt = self._create_section_prompt(section_name, user_data, job_requirements)
@@ -388,7 +295,10 @@ class CVGenerator:
         # Use primary model for generation
         generated_text = self.generate_text(prompt, use_primary=True)
         
-        return generated_text
+        # Clean the generated content to remove section titles/headings
+        cleaned_text = self._clean_section_content(generated_text, section_name)
+        
+        return cleaned_text
     
     def _create_section_prompt(self, section_name: str, user_data: Dict, job_requirements: Optional[Dict] = None) -> str:
         """
@@ -402,35 +312,7 @@ class CVGenerator:
         Returns:
             Formatted prompt string
         """
-        # Base prompt template
-        prompt = f"Create a professional, ATS-friendly {section_name} section for a CV.\n\n"
-        
-        # Add user data
-        prompt += "Candidate Information:\n"
-        for key, value in user_data.items():
-            if value:
-                if isinstance(value, list):
-                    prompt += f"{key}: {', '.join(str(v) for v in value)}\n"
-                elif isinstance(value, dict):
-                    for k, v in value.items():
-                        if v:
-                            prompt += f"{key} - {k}: {v}\n"
-                else:
-                    prompt += f"{key}: {value}\n"
-        
-        # Add job requirements for tailoring (ATS optimization)
-        if job_requirements:
-            prompt += "\nTarget Job Requirements:\n"
-            if job_requirements.get("keywords"):
-                prompt += f"Key Skills/Keywords: {', '.join(job_requirements['keywords'])}\n"
-            if job_requirements.get("requirements"):
-                prompt += f"Requirements: {', '.join(job_requirements['requirements'][:5])}\n"  # Top 5
-        
-            prompt += "\nTailor the section to align with these job requirements while maintaining accuracy.\n"
-        
-        prompt += f"\nGenerate a well-formatted, keyword-rich {section_name} section:"
-        
-        return prompt
+        return self.prompt_builder.create_section_prompt(section_name, user_data, job_requirements)
     
     def optimize_resume_with_missing_skills(self, resume_text: str, user_data: Dict,
                                            missing_skills: List[str], jd_skills: List[str],
@@ -504,18 +386,31 @@ Generate the optimized resume:"""
             else:
                 prompt = self._create_section_prompt(section, user_data, job_requirements)
             
-            # Use LLM 2 (GPT-4.1) for optimization tasks, LLM 1 for regular generation
+            # Use LLM 2 (GPT-4o) for optimization tasks, LLM 1 for regular generation
             if missing_skills and section in ["Work Experience", "Skills", "Professional Summary"]:
-                cv_sections[section] = self.generate_text(
+                # Reduce token limits for conciseness
+                max_tokens = 600 if section == "Work Experience" else 400
+                generated_content = self.generate_text(
                     prompt, 
                     use_optimization_model=True,
-                    max_tokens=1000,
+                    max_tokens=max_tokens,
                     temperature=0.7
                 )
             else:
-                cv_sections[section] = self.generate_text(prompt, use_primary=True, max_new_tokens=512)
+                # Reduce token limits based on section type
+                if section == "Work Experience":
+                    max_new_tokens = 400
+                elif section in ["Skills", "Education", "Certifications", "Projects", "Languages"]:
+                    max_new_tokens = 200
+                else:
+                    max_new_tokens = 300
+                generated_content = self.generate_text(prompt, use_primary=True, max_new_tokens=max_new_tokens)
+            
+            # Clean the generated content to remove section titles/headings
+            cv_sections[section] = self.content_cleaner.clean_section_content(generated_content, section)
         
         return cv_sections
+    
     
     def _create_optimization_prompt(self, section_name: str, user_data: Dict,
                                    job_requirements: Optional[Dict], missing_skills: List[str]) -> str:
@@ -531,35 +426,9 @@ Generate the optimized resume:"""
         Returns:
             Formatted prompt string
         """
-        prompt = f"""Create an ATS-optimized {section_name} section for a CV.
-
-Candidate Information:
-"""
-        for key, value in user_data.items():
-            if value and key != "all_skills":
-                if isinstance(value, list):
-                    prompt += f"{key}: {', '.join(str(v) for v in value)}\n"
-                elif isinstance(value, dict):
-                    for k, v in value.items():
-                        if v:
-                            prompt += f"{key} - {k}: {v}\n"
-                else:
-                    prompt += f"{key}: {value}\n"
-        
-        if job_requirements:
-            prompt += "\nTarget Job Requirements:\n"
-            if job_requirements.get("keywords"):
-                prompt += f"Key Skills/Keywords: {', '.join(job_requirements['keywords'])}\n"
-        
-        prompt += f"\nMissing Skills to Naturally Incorporate: {', '.join(missing_skills)}\n"
-        prompt += f"\nGenerate a well-formatted, keyword-rich {section_name} that:\n"
-        prompt += "- Naturally incorporates relevant missing skills (only if truthful)\n"
-        prompt += "- Uses strong action verbs\n"
-        prompt += "- Includes measurable achievements\n"
-        prompt += "- Is optimized for ATS keyword matching\n"
-        prompt += f"\n{section_name} section:"
-        
-        return prompt
+        return self.prompt_builder.create_optimization_prompt(
+            section_name, user_data, job_requirements, missing_skills
+        )
     
     def regenerate_section_with_feedback(self, section_name: str, user_data: Dict, 
                                          current_content: str, feedback: str,
@@ -584,7 +453,10 @@ Candidate Information:
         # Use primary model for generation
         generated_text = self.generate_text(prompt, use_primary=True)
         
-        return generated_text
+        # Clean the generated content to remove section titles/headings
+        cleaned_text = self._clean_section_content(generated_text, section_name)
+        
+        return cleaned_text
     
     def _create_feedback_prompt(self, section_name: str, user_data: Dict, 
                                current_content: str, feedback: str,
@@ -603,8 +475,46 @@ Candidate Information:
             Formatted prompt string
         """
         prompt = f"Revise and improve the {section_name} section of a CV based on user feedback.\n\n"
+        prompt += "IMPORTANT: Do NOT include the section title or heading in your response. Only provide the revised content.\n"
+        prompt += "CRITICAL: ONLY use information provided below. Do NOT invent, add, or create any details that are not explicitly provided.\n"
+        prompt += "IMPORTANT: Keep the content CONCISE and BRIEF. Aim for 2-3 pages total CV length.\n\n"
         
-        prompt += "Current Section Content:\n"
+        # Special handling for Personal Information
+        if section_name == "Personal Information":
+            prompt += "CRITICAL: Output ONLY the actual contact information. Do NOT include any headings, subheadings, labels, or placeholder text.\n"
+            prompt += "NEVER include the text 'Contact Information' or 'Contact Information:' anywhere in your output.\n"
+            prompt += "NEVER include placeholder text like '[LinkedIn URL if provided]', '[Address if provided]', or any similar placeholders.\n"
+            prompt += "The section is already titled 'Personal Information', so do NOT add any subheadings.\n"
+            prompt += "Format as plain text (NO headings, NO labels, NO placeholders, just the actual information):\n"
+            prompt += "Name\n"
+            prompt += "Email\n"
+            prompt += "Phone\n"
+            prompt += "LinkedIn URL (ONLY include if actually provided in candidate data - if not provided, omit this line entirely)\n"
+            prompt += "Address (ONLY include if actually provided in candidate data - if not provided, omit this line entirely)\n"
+            prompt += "If LinkedIn URL or Address is not in the candidate data, do NOT mention them at all. Do NOT include placeholder text.\n\n"
+        
+        # Special handling for Professional Summary
+        if section_name == "Professional Summary":
+            prompt += "Generate EXACTLY 100 words (not more, not less).\n\n"
+        
+        # Special handling for Certifications
+        if section_name == "Certifications":
+            prompt += "List ONLY the certifications provided. Do NOT include the candidate's name.\n\n"
+        
+        prompt += "Candidate Information:\n"
+        for key, value in user_data.items():
+            if value and key != "name":  # Don't include name in certifications
+                if isinstance(value, list):
+                    if value:
+                        prompt += f"{key}: {', '.join(str(v) for v in value)}\n"
+                elif isinstance(value, dict):
+                    for k, v in value.items():
+                        if v:
+                            prompt += f"{key} - {k}: {v}\n"
+                else:
+                    prompt += f"{key}: {value}\n"
+        
+        prompt += "\nCurrent Section Content:\n"
         prompt += f"{current_content}\n\n"
         
         prompt += "User Feedback:\n"
@@ -631,7 +541,7 @@ Candidate Information:
             if job_requirements.get("requirements"):
                 prompt += f"Requirements: {', '.join(job_requirements['requirements'][:5])}\n"
         
-        prompt += f"\nPlease regenerate the {section_name} section incorporating the user feedback while maintaining professionalism and ATS-friendliness:"
+        prompt += f"\nPlease regenerate ONLY the content for the {section_name} section (no title, no heading) incorporating the user feedback while maintaining professionalism and ATS-friendliness:"
         
         return prompt
     

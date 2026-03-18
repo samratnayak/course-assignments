@@ -20,7 +20,7 @@ import argparse
 import torch
 import transformers
 import warnings
-from typing import Dict
+from typing import Dict, Optional
 
 # Suppress warnings
 warnings.filterwarnings("ignore")
@@ -40,116 +40,9 @@ from embedding_model import EmbeddingModel
 from skill_matcher import SkillMatcher
 from ats_scorer import ATSScorer
 from resume_optimizer import ResumeOptimizer
+from cv_utils import display_cv_preview, get_user_feedback, apply_feedback_to_sections
 
 
-def display_cv_preview(cv_sections: Dict[str, str], iteration: int = 1):
-    """
-    Display a preview of the CV sections for user review.
-    
-    Args:
-        cv_sections: Dictionary of CV sections
-        iteration: Current iteration number
-    """
-    print("\n" + "=" * 80)
-    print(f"CV PREVIEW (Iteration {iteration})")
-    print("=" * 80)
-    
-    for section_name, section_content in cv_sections.items():
-        print(f"\n[{section_name}]")
-        print("-" * 80)
-        # Display first 500 characters of each section to keep it manageable
-        preview = section_content[:500] if len(section_content) > 500 else section_content
-        print(preview)
-        if len(section_content) > 500:
-            print("... (truncated)")
-    
-    print("\n" + "=" * 80)
-
-
-def get_user_feedback() -> Dict[str, str]:
-    """
-    Get feedback from user for CV sections.
-    
-    Returns:
-        Dictionary mapping section names to feedback strings, or empty dict if no feedback
-    """
-    print("\n" + "=" * 80)
-    print("FEEDBACK OPTIONS")
-    print("=" * 80)
-    print("You can provide feedback in the following ways:")
-    print("1. Type 'stop', 'done', 'exit', or 'quit' to finish and save the CV")
-    print("2. Type 'all: [your feedback]' to provide feedback for all sections")
-    print("3. Type '[section name]: [your feedback]' to provide feedback for a specific section")
-    print("4. Type 'skip' or press Enter to keep current version and continue")
-    print("=" * 80)
-    
-    user_input = input("\nEnter your feedback (or 'stop' to finish): ").strip()
-    
-    if not user_input or user_input.lower() in ['skip', '']:
-        return {}
-    
-    if user_input.lower() in ['stop', 'done', 'exit', 'quit', 'finish']:
-        return {'_stop': True}
-    
-    feedback_dict = {}
-    
-    # Check if feedback is for all sections
-    if user_input.lower().startswith('all:'):
-        feedback_text = user_input[4:].strip()
-        if feedback_text:
-            # Apply to all sections
-            feedback_dict['_all'] = feedback_text
-    else:
-        # Try to parse section-specific feedback
-        # Look for pattern: "Section Name: feedback"
-        parts = user_input.split(':', 1)
-        if len(parts) == 2:
-            section_name = parts[0].strip()
-            feedback_text = parts[1].strip()
-            if feedback_text:
-                feedback_dict[section_name] = feedback_text
-        else:
-            # If no section specified, treat as general feedback for all sections
-            feedback_dict['_all'] = user_input
-    
-    return feedback_dict
-
-
-def apply_feedback_to_sections(cv_sections: Dict[str, str], feedback_dict: Dict[str, str]) -> Dict[str, str]:
-    """
-    Apply feedback to CV sections.
-    
-    Args:
-        cv_sections: Current CV sections
-        feedback_dict: Dictionary of feedback
-        
-    Returns:
-        Dictionary mapping section names to feedback strings
-    """
-    section_feedback = {}
-    
-    # Handle general feedback for all sections
-    if '_all' in feedback_dict:
-        general_feedback = feedback_dict['_all']
-        for section_name in cv_sections.keys():
-            section_feedback[section_name] = general_feedback
-    
-    # Handle section-specific feedback
-    for section_name, feedback in feedback_dict.items():
-        if section_name != '_all' and section_name != '_stop':
-            # Try to match section name (case-insensitive, partial match)
-            matched = False
-            for existing_section in cv_sections.keys():
-                if section_name.lower() in existing_section.lower() or existing_section.lower() in section_name.lower():
-                    section_feedback[existing_section] = feedback
-                    matched = True
-                    break
-            
-            if not matched:
-                # If no match found, add as-is (might be a new section or typo)
-                section_feedback[section_name] = feedback
-    
-    return section_feedback
 
 
 def parse_arguments():
@@ -188,7 +81,7 @@ def parse_arguments():
         "-j", "--job-description",
         type=str,
         default=None,
-        help="Optional: Path to job description file, or 'NA' to skip job description. "
+        help="Optional: Job description text directly, or path to job description file, or 'NA' to skip. "
              "If not provided, system will check input file and prompt user if needed."
     )
     
@@ -287,12 +180,14 @@ def main():
                 print("\n[Step 5] Job description skipped (NA specified)")
                 job_text_to_parse = None
             elif os.path.exists(args.job_description):
+                # It's a file path
                 print("\n[Step 5] Loading job description from specified file...")
                 with open(args.job_description, 'r', encoding='utf-8') as f:
                     job_text_to_parse = f.read()
             else:
-                print(f"\n[Step 5] ⚠ Job description file not found: {args.job_description}")
-                job_text_to_parse = None
+                # Treat as direct text input
+                print("\n[Step 5] Using job description text from command line...")
+                job_text_to_parse = args.job_description
         
         # Priority 3: Ask user interactively (before conversational mode)
         if job_text_to_parse is None and (not args.job_description or args.job_description.upper() != 'NA'):
@@ -301,19 +196,23 @@ def main():
             print("=" * 80)
             print("No job description found. You can provide one for ATS-optimized CV tailoring.")
             print("Options:")
-            print("  1. Enter path to job description file")
-            print("  2. Type 'NA' or press Enter to skip job description")
+            print("  1. Enter job description text directly (paste the job description)")
+            print("  2. Enter path to job description file")
+            print("  3. Type 'NA' or press Enter to skip job description")
             print("=" * 80)
             
-            user_input = input("\nEnter job description file path (or 'NA' to skip): ").strip()
+            user_input = input("\nEnter job description text or file path (or 'NA' to skip): ").strip()
             
             if user_input and user_input.upper() != 'NA':
                 if os.path.exists(user_input):
+                    # It's a file path
                     with open(user_input, 'r', encoding='utf-8') as f:
                         job_text_to_parse = f.read()
                     print(f"✓ Job description loaded from: {user_input}")
                 else:
-                    print(f"⚠ File not found: {user_input}. Proceeding without job description.")
+                    # Treat as direct text input
+                    job_text_to_parse = user_input
+                    print(f"✓ Job description text accepted ({len(user_input)} characters)")
             else:
                 print("✓ Proceeding without job description")
         
@@ -361,7 +260,7 @@ def main():
         # Step 9: LLM 2 → Resume Optimization with Self-Improvement Loop
         if jd_skills and ats_scorer and skill_matcher:
             print("\n[Step 9] LLM 2 → Resume Optimization with Self-Improvement Loop...")
-            resume_optimizer = ResumeOptimizer(cv_generator, ats_scorer, skill_matcher, target_score=0.8, max_iterations=5)
+            resume_optimizer = ResumeOptimizer(cv_generator, ats_scorer, skill_matcher, target_score=0.8, max_iterations=3)
             
             # Combine resume text for optimization
             resume_text = extracted_text  # Use original extracted text
@@ -384,15 +283,34 @@ def main():
             print(f"  - Iterations: {optimization_result['iterations']}")
             print(f"  - Target Achieved: {'Yes' if optimization_result['target_achieved'] else 'No'}")
             
-            # Regenerate CV sections with optimized content
-            print("\n[Step 10] Regenerating optimized CV sections...")
-            cv_sections = cv_generator.generate_tailored_cv(
-                structured_data, job_requirements, missing_skills
-            )
+            # Use optimized CV sections if available, otherwise regenerate
+            if 'optimized_cv_sections' in optimization_result:
+                print("\n[Step 10] Using optimized CV sections from self-improvement loop...")
+                cv_sections = optimization_result['optimized_cv_sections']
+            else:
+                print("\n[Step 10] Regenerating optimized CV sections...")
+                cv_sections = cv_generator.generate_tailored_cv(
+                    structured_data, job_requirements, missing_skills
+                )
         else:
             # Generate CV without optimization (no job description)
             print("\n[Step 9] Generating CV sections (no optimization - no job description)...")
             cv_sections = cv_generator.generate_tailored_cv(structured_data, job_requirements)
+            
+            # Calculate ATS score even without job description (for informational purposes)
+            if embedding_model:
+                print("\n[Step 9b] Calculating baseline ATS metrics...")
+                # Create a simple ATS scorer for baseline calculation
+                baseline_skill_matcher = SkillMatcher(embedding_model)
+                baseline_ats_scorer = ATSScorer(embedding_model, baseline_skill_matcher)
+                
+                # Use empty job description for baseline score
+                resume_text = "\n\n".join([f"{k}\n{v}" for k, v in cv_sections.items()])
+                baseline_score = baseline_ats_scorer.calculate_ats_score(
+                    resume_text, resume_skills, "", [], []
+                )
+                print(f"  - Baseline ATS Score: {baseline_score['overall_score']:.3f}")
+                print(f"    (Note: This is a baseline score. For accurate ATS scoring, provide a job description.)")
         
         # Step 11: Conversational CV refinement loop
         print("\n" + "=" * 80)
@@ -405,22 +323,38 @@ def main():
         iteration = 1
         formatter = CVFormatter()
         
+        # Validate and sanitize candidate name
+        raw_name = structured_data.get('name', '').strip('"\'')
+        # Remove trailing commas and quotes
+        raw_name = raw_name.rstrip(',').strip().strip('"\'')
+        
+        # Validate the extracted name using the resume extractor's validation
+        if not raw_name or not resume_extractor._is_valid_name(raw_name):
+            print(f"⚠ Warning: Invalid name extracted ('{raw_name}'). Using 'Candidate' as default.")
+            raw_name = 'Candidate'
+        
         # Determine output path
         if args.output:
             output_path = args.output
         else:
-            candidate_name = structured_data.get('name', 'Candidate').replace(' ', '_')
-            output_filename = f"cv_{candidate_name}.{args.format}"
+            # Sanitize candidate name for filename (remove quotes, commas, and other invalid chars)
+            sanitized_name = raw_name.replace('"', '').replace("'", '').replace(',', '').replace(' ', '_')
+            # Remove any remaining invalid filename characters
+            sanitized_name = ''.join(c for c in sanitized_name if c.isalnum() or c in ('_', '-'))
+            if not sanitized_name:  # If name becomes empty after sanitization
+                sanitized_name = 'Candidate'
+            output_filename = f"cv_{sanitized_name}.{args.format}"
             output_path = os.path.join(config.output_dir, output_filename)
         
-        candidate_name = structured_data.get('name', 'Candidate')
+        # Get clean candidate name for display (without quotes)
+        candidate_name = raw_name
         
         while True:
             # Display current CV preview
             display_cv_preview(cv_sections, iteration)
             
             # Get user feedback
-            feedback_dict = get_user_feedback()
+            feedback_dict = get_user_feedback(cv_sections)
             
             # Check if user wants to stop
             if '_stop' in feedback_dict:
@@ -468,7 +402,13 @@ def main():
         print(f"Output: {output_path}")
         print(f"Format: {args.format.upper()}")
         print(f"Iterations: {iteration}")
-        print(f"Models used: {cv_generator.primary_model} (primary), Flan-T5-XL (secondary)")
+        
+        # Display models used correctly
+        llm1_model = "Mistral 7B (Ollama)" if cv_generator.primary_model == "ollama" else "Flan-T5-XL"
+        llm2_model = "GPT-4o (OpenAI)" if cv_generator.optimization_model == "openai" else f"{cv_generator.optimization_model} (fallback)"
+        print(f"LLM 1 (Extraction): {llm1_model}")
+        print(f"LLM 2 (Optimization): {llm2_model}")
+        
         if job_requirements:
             print("CV tailored for job requirements: Yes")
         print("=" * 80)

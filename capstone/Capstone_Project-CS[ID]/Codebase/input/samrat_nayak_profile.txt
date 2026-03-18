@@ -1,0 +1,92 @@
+Samrat Nayak
+Email: samrat.nayak@outlook.com
+Phone: 8867830338
+Location: Bengaluru, Karnataka, India
+LinkedIn: www.linkedin.com/in/samrat-nayak-97854941
+
+PROFESSIONAL SUMMARY
+Software developer with years of experience in Java. Skilled in frontend development using React JS. Proficient in Springboot, SQL (Oracle, Postgres, Azure SQL), Azure Cosmos, Microservices, Kubernetes, GCP certified, Azure, Basic Python, Basic shellscript, Prompt Engineering, Azure OpenAI. Expertise in Java, Microservices, Cloud technologies, and full-stack development.
+
+WORK EXPERIENCE
+
+Senior Software Engineer
+Walmart Global Tech India, Bengaluru, Karnataka, India
+December 2021 - Present
+- Working on enterprise-level Java applications and microservices architecture
+- Developing and maintaining scalable cloud-based solutions
+- Collaborating with cross-functional teams to deliver high-quality software solutions
+- Implementing best practices for software development and deployment
+
+Specialist Software Engineer - Fullstack
+Societe Generale Global Solution Centre, Bengaluru, Karnataka, India
+July 2019 - November 2021
+- Developed and maintained Java Fullstack applications using Springboot, React JS, and PostgresSQL
+- Designed and implemented RESTful APIs and microservices
+- Worked on frontend development using React JS for user interface
+- Collaborated with team members to deliver robust financial software solutions
+- Participated in code reviews and ensured code quality standards
+
+Senior Consultant
+ORACLE FINANCIAL SERVICES SOFTWARE LIMITED, Bengaluru Area, India
+November 2016 - June 2019
+- Worked on Java-based financial software solutions using Springboot, Springbatch, and Oracle DB
+- Developed and maintained database-driven applications
+- Implemented small portions of frontend using Jquery
+- Provided technical consulting and support to clients
+- Ensured compliance with financial software standards and regulations
+
+System Engineer
+Tata Consultancy Services, Bengaluru Area, India
+March 2013 - October 2016
+- Developed and maintained enterprise Java applications
+- Worked on system integration and software development projects
+- Collaborated with clients to understand requirements and deliver solutions
+- Participated in software testing and quality assurance activities
+
+SKILLS
+Programming Languages: Java, Python (Basic), Shell Script (Basic)
+Frameworks: Spring Boot, Springbatch, React JS, Jquery
+Databases: SQL, Oracle, PostgreSQL, Azure SQL, Azure Cosmos
+Cloud Platforms: Google Cloud Platform (GCP Certified), Microsoft Azure
+Technologies: Microservices, Kubernetes, Prompt Engineering, Azure OpenAI, OpenAI LLM
+Tools: WCNP
+
+CERTIFICATIONS
+- Big Data and Hadoop Developer
+- Convolutional Neural Networks
+- Big-Data and Hadoop Developer
+- Sequence Models
+- Structuring Machine Learning Projects
+- GCP Certified (Google Cloud Platform)
+
+LANGUAGES
+English: Full Professional Proficiency
+French: Professional Working Proficiency
+Hindi: Native or Bilingual Proficiency
+Oriya: Native or Bilingual Proficiency
+
+Job Description:
+
+Team Description
+
+The Search Indexing Platform team is instrumental in facilitating search functionality on Walmart's global sites and applications. We build robust, scalable data pipelines and services, directly influencing key business metrics. Our team harnesses structured and semi-structured data from various sources including product catalogs, inventory systems, social web platforms, transaction records, and query logs. Operating at an unparalleled scale, we devise solutions for critical business issues, catering to the demands of millions of Walmart customers worldwide.
+
+Job Summary
+
+We are in search of a Staff Software Engineer possessing strong expertise in Big Data technologies to be a part of our Search Indexing Platform team. This role is hands-on and demands superior coding skills, robust architectural and design abilities, and the capability of guiding and mentoring a small team of engineers. You will be at the forefront, leading, designing, and developing both business and technology initiatives that address and resolve mission-critical business challenges faced by Walmart customers.
+
+What you'll do
+
+Lead and participate in medium- to large-scale, complex, cross-functional projects by reviewing project, product and business requirements; translating requirements into technical solutions; designing robust and scalable architectures; writing and developing code; conducting unit testing; communicating status and issues to team members and stakeholders; collaborating with cross functional teams; troubleshooting open issues and bug-fixes; enhancing design to prevent re-occurrences of defects; ensuring on-time delivery;
+Provide technical direction, architecture leadership and expertise to the team.
+Lead by example. Show your chops as an exceptional and experienced developer, including thoughtful code reviews, testing, rollout, monitoring, and proactive changes.
+Participate in the discovery phase of medium- to large-sized projects to come up with high level design by partnering with the product management, project management, business, user experience teams, and engineering teams.
+Contribute in all phases of the development life cycle and write well-designed, testable, efficient code.
+Troubleshoot business and production issues by gathering information (for example, issue, impact, criticality, possible root cause) and performing root cause analysis to reduce future issues.
+What you'll bring
+
+Bachelor's degree in computer science and 6 years of experience, or master's degree in computer science and 4 years of experience in building highly distributed, scalable, and fault tolerant Data Pipelines and Java applications.
+Strong hands-on programming experience using Java or another object-oriented language.
+Demonstrated expertise in developing and overseeing large-scale distributed applications, with a focus on scalability, availability, and fault tolerance, utilizing big data technologies such as Spark, Cassandra, Kafka, and Redis.
+Strong grasp of distributed systems architecture and design principles.
+Advanced knowledge of intricate software design, design patterns, data structures, and algorithms.

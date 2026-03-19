@@ -4,52 +4,90 @@ This directory contains the project report for the CV Creation using LLMs capsto
 
 ## Files
 
-- **Report.md**: Markdown source file containing the complete report
-- **Report.docx**: Word document version (to be generated)
-- **Report.pdf**: PDF version (final submission format)
+- **Report.md**: Markdown source file containing the complete report (UPDATED with comprehensive content)
+- **Report.docx**: Word document version (generated from Report.md)
+- **Report.pdf**: PDF version (final submission format - needs to be regenerated from updated Report.md)
 - **generate_report.py**: Python script to convert markdown to Word format
+- **generate_pdf.py**: Python script to convert markdown directly to PDF (requires additional dependencies)
 
 ## Generating the Final Report
 
-### Option 1: Using the Python Script (Recommended)
+**Note**: The `Report.md` file has been updated with comprehensive information about:
+- Overall approach and design philosophy
+- Detailed model selection justification with evaluation process
+- ResumeLM evaluation and why it wasn't used
+- LangChain integration strategy and why it's used only for structured output parsing
+- Enhanced workflow and module descriptions
 
-1. Install python-docx if not already installed:
+### Option 1: Using Pandoc with LaTeX (Best Quality PDF)
+
+1. Install LaTeX (if not already installed):
+   ```bash
+   # macOS
+   brew install basictex
+   
+   # Linux
+   sudo apt-get install texlive-latex-base texlive-latex-extra
+   ```
+
+2. Generate PDF:
+   ```bash
+   cd Report
+   pandoc Report.md -o Report.pdf --pdf-engine=pdflatex -V geometry:margin=1in -V fontsize=11pt -V documentclass=article
+   ```
+
+### Option 2: Using Python Script (via DOCX)
+
+1. Install python-docx:
    ```bash
    pip install python-docx
    ```
 
-2. Run the generation script:
+2. Generate DOCX:
    ```bash
    cd Report
-   python generate_report.py
+   python3 generate_report.py
    ```
 
-3. The script will create `Report.docx` from `Report.md`
+3. Convert DOCX to PDF:
+   - **Option A**: Open `Report.docx` in Microsoft Word → File → Save As → PDF
+   - **Option B**: Use LibreOffice (free):
+     ```bash
+     soffice --headless --convert-to pdf --outdir . Report.docx
+     ```
 
-4. Open `Report.docx` in Microsoft Word and:
-   - Review the formatting
-   - Adjust spacing if needed to fit within 3 pages
-   - Ensure minimum font size is 12pt
-   - Save as PDF: File → Save As → PDF
+### Option 3: Using Python with WeasyPrint (Direct PDF)
 
-### Option 2: Using Pandoc
+1. Install dependencies:
+   ```bash
+   pip install markdown weasyprint
+   ```
 
-If you have pandoc installed:
+2. Run PDF generator:
+   ```bash
+   cd Report
+   python3 generate_pdf.py
+   ```
 
-```bash
-cd Report
-pandoc Report.md -o Report.docx
-```
+### Option 4: Manual Conversion (Markdown Editor)
 
-Then open in Word, review, and export to PDF.
+1. Open `Report.md` in a markdown editor that supports PDF export:
+   - **Typora**: File → Export → PDF
+   - **Mark Text**: File → Export → PDF
+   - **VS Code**: Use "Markdown PDF" extension
+   - **Online**: Use markdown-to-pdf.com or similar
 
-### Option 3: Manual Conversion
+2. Adjust formatting if needed (margins, font size, etc.)
 
-1. Open `Report.md` in a markdown editor (e.g., Typora, Mark Text, or VS Code with markdown preview)
-2. Export to Word format
-3. Open in Microsoft Word
-4. Review and adjust formatting
-5. Save as PDF
+### Option 5: Using Pandoc (HTML Intermediate)
+
+1. Convert to HTML:
+   ```bash
+   cd Report
+   pandoc Report.md -o Report.html -s --css=style.css
+   ```
+
+2. Open HTML in browser and print to PDF (Ctrl+P / Cmd+P → Save as PDF)
 
 ## Report Structure
 

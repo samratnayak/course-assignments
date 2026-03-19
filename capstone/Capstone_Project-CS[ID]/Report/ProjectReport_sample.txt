@@ -1,0 +1,20 @@
+Project Title
+Abstract
+[Provide a concise summary of the project, its objectives, methodology, and key outcomes (150–250 words).]
+1. Introduction
+•	Context and background of the project
+•	Motivation for selecting this topic
+2. Problem Statement
+•	Clear articulation of the issue/problem to be solved
+3. Objectives
+•	Bullet point list of main goals of the project
+4. Methodology
+•	Tools and technologies used
+•	Workflow / conceptual framework
+•	Modules and their functionality
+6. Results and Analysis
+•	Key findings
+•	Tables (preferred) or graphs
+7. Conclusion 
+•	Summary of contributions
+•	Possible extensions or improvements

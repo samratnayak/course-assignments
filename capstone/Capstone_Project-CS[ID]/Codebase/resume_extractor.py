@@ -215,7 +215,42 @@ IMPORTANT:
             "languages": []
         }
         
-        # Try to extract JSON from the text
+        # Use LangChain structured output parser if available, otherwise fallback to regex
+        parsed = None
+        try:
+            from langchain_parsers import parse_resume_data, is_langchain_available
+            if is_langchain_available():
+                parsed = parse_resume_data(extracted_text)
+            else:
+                print("  ℹ LangChain not available, using regex-based parsing for resume extraction")
+                parsed = None
+            # If parsing succeeded and has valid data, use it
+            if parsed and (parsed.get('name') or parsed.get('skills') or parsed.get('tools')):
+                # Map to expected format
+                structured_data["skills"] = parsed.get("skills", [])
+                structured_data["tools"] = parsed.get("tools", [])
+                structured_data["soft_skills"] = parsed.get("soft_skills", [])
+                # Clean and validate name extraction
+                extracted_name = parsed.get("name", "").strip().strip('"\'')
+                extracted_name = extracted_name.rstrip(',').strip().strip('"\'')
+                if extracted_name and self._is_valid_name(extracted_name):
+                    structured_data["name"] = extracted_name
+                
+                if "contact" in parsed:
+                    structured_data["contact"].update(parsed.get("contact", {}))
+                
+                structured_data["education"] = parsed.get("education", [])
+                structured_data["experience"] = parsed.get("experience", [])
+                structured_data["projects"] = parsed.get("projects", [])
+                structured_data["certifications"] = parsed.get("certifications", [])
+                structured_data["languages"] = parsed.get("languages", [])
+                
+                return structured_data
+        except (ImportError, Exception) as e:
+            # Fallback to current regex-based parsing
+            pass
+        
+        # Fallback: Try to extract JSON from the text using regex
         json_match = re.search(r'\{[^{}]*\}', extracted_text, re.DOTALL)
         if json_match:
             try:

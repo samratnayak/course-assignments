@@ -9,9 +9,11 @@ openai>=1.0.0
 # Ollama for Gemma 3 1B
 ollama>=0.1.0
 
-# LangChain for orchestration
+# LangChain for structured output parsing (optional - system works without it)
 langchain>=0.1.0
 langchain-community>=0.0.20
+langchain-openai>=0.0.5  # For OpenAI integration with structured outputs
+pydantic>=2.0.0  # For structured output models (LangChain dependency)
 
 # Document Processing
 pdfplumber>=0.10.0

@@ -274,7 +274,36 @@ Focus on extracting ALL required skills, tools, and technologies. Be comprehensi
         
         try:
             enhanced_text = self.llm_model.generate_text(prompt, max_new_tokens=512)
-            # Try to parse JSON from LLM output
+            # Use LangChain structured output parser if available, otherwise fallback to regex
+            try:
+                from langchain_parsers import parse_job_description, is_langchain_available
+                if is_langchain_available():
+                    parsed = parse_job_description(enhanced_text)
+                else:
+                    print("  ℹ LangChain not available, using regex-based parsing for job description")
+                    parsed = None
+                # If parsing succeeded, update initial_data
+                if parsed:
+                    if "skills" in parsed or "tools" in parsed:
+                        initial_data["keywords"] = parsed.get("skills", []) + parsed.get("tools", [])
+                        initial_data["skills_required"] = parsed.get("skills", []) + parsed.get("tools", [])
+                    if "job_title" in parsed:
+                        initial_data["job_title"] = parsed["job_title"]
+                    if "requirements" in parsed:
+                        initial_data["requirements"] = parsed["requirements"]
+                    if "responsibilities" in parsed:
+                        initial_data["responsibilities"] = parsed["responsibilities"]
+                    return initial_data
+            except ImportError:
+                # LangChain module not found
+                print("  ℹ LangChain module not found, using regex-based parsing for job description")
+                parsed = None
+            except Exception as e:
+                # LangChain parsing failed
+                print(f"  ⚠ LangChain parsing error, falling back to regex: {str(e)[:100]}")
+                parsed = None
+            
+            # Fallback: Try to parse JSON from LLM output using regex
             import json
             import re
             json_match = re.search(r'\{[^{}]*\}', enhanced_text, re.DOTALL)

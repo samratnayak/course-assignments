@@ -173,6 +173,16 @@ def main():
         print(f"✓ LLM 1 (Extraction Model): {cv_generator.primary_model}")
         print(f"✓ LLM 2 (Optimization Model): {cv_generator.optimization_model}")
         
+        # Check LangChain availability
+        try:
+            from langchain_parsers import is_langchain_available, get_parser_info
+            if is_langchain_available():
+                print(f"✓ {get_parser_info()}")
+            else:
+                print(f"ℹ {get_parser_info()}")
+        except ImportError:
+            pass
+        
         # Update job parser with LLM model
         job_parser.llm_model = cv_generator
         

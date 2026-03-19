@@ -137,13 +137,26 @@ JSON Response:"""
             max_tokens=1000
         )
         
-        # Extract JSON from response
-        json_match = re.search(r'\{.*\}', response, re.DOTALL)
-        if json_match:
-            parsed = json.loads(json_match.group(0))
-        else:
-            # Try to parse the whole response
-            parsed = json.loads(response)
+        # Use LangChain structured output parser if available, otherwise fallback to regex
+        try:
+            from langchain_parsers import parse_feedback_response, is_langchain_available
+            if is_langchain_available():
+                parsed = parse_feedback_response(response)
+            else:
+                print("  ℹ LangChain not available, using regex-based parsing for feedback")
+                json_match = re.search(r'\{.*\}', response, re.DOTALL)
+                if json_match:
+                    parsed = json.loads(json_match.group(0))
+                else:
+                    parsed = json.loads(response)
+        except ImportError:
+            # Fallback to current regex-based parsing
+            print("  ℹ LangChain module not found, using regex-based parsing for feedback")
+            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            if json_match:
+                parsed = json.loads(json_match.group(0))
+            else:
+                parsed = json.loads(response)
         
         # Handle stop signal
         if parsed.get('stop'):
@@ -456,21 +469,35 @@ JSON Response:"""
             max_tokens=500
         )
         
-        # Extract JSON
-        json_match = re.search(r'\{.*\}', response, re.DOTALL)
-        if json_match:
-            parsed = json.loads(json_match.group(0))
-        else:
-            parsed = json.loads(response)
-        
-        if parsed.get('is_multi_step') and 'instructions' in parsed:
-            instructions = parsed['instructions']
-            print(f"  ✓ Multi-step instruction detected:")
-            for sec, instr in instructions.items():
-                if sec in cv_sections:
-                    print(f"    - {sec}: {instr[:50]}...")
-            return instructions
-        else:
+        # Use LangChain structured output parser if available, otherwise fallback to regex
+        try:
+            from langchain_parsers import parse_multi_step_instruction
+            instructions = parse_multi_step_instruction(response, current_section)
+            if instructions and isinstance(instructions, dict) and len(instructions) > 1:
+                print(f"  ✓ Multi-step instruction detected:")
+                for sec, instr in instructions.items():
+                    if sec in cv_sections:
+                        print(f"    - {sec}: {instr[:50]}...")
+                return instructions
+            else:
+                # Not multi-step, return as single instruction
+                return {current_section: feedback}
+        except ImportError:
+            # Fallback to current regex-based parsing
+            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            if json_match:
+                try:
+                    parsed = json.loads(json_match.group(0))
+                    if parsed.get('is_multi_step') and 'instructions' in parsed:
+                        instructions = parsed['instructions']
+                        print(f"  ✓ Multi-step instruction detected:")
+                        for sec, instr in instructions.items():
+                            if sec in cv_sections:
+                                print(f"    - {sec}: {instr[:50]}...")
+                        return instructions
+                except json.JSONDecodeError:
+                    pass
+            
             # Not multi-step, return as single instruction
             return {current_section: feedback}
             

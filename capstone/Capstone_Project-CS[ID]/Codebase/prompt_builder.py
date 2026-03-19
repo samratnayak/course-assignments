@@ -230,8 +230,13 @@ class PromptBuilder:
             "anywhere in your output.\n"
             "NEVER include placeholder text like '[LinkedIn URL if provided]', "
             "'[Address if provided]', or any similar placeholders.\n"
+            "ABSOLUTELY FORBIDDEN: Do NOT include any explanations, reasoning, notes, or commentary. "
+            "Do NOT include sentences starting with 'Please note', 'However', 'Therefore', 'While', "
+            "'It should be noted', 'Note that', or any similar explanatory phrases.\n"
+            "Do NOT include any analysis, observations, or meta-commentary about the candidate's information.\n"
+            "Do NOT include any sentences about experience, qualifications, skills, or job requirements.\n"
             "The section is already titled 'Personal Information', so do NOT add any subheadings.\n"
-            "Format as plain text (NO headings, NO labels, NO placeholders, just the actual information):\n"
+            "Format as plain text (NO headings, NO labels, NO placeholders, NO explanations, just the actual information):\n"
             "Name\n"
             "Email\n"
             "Phone (CRITICAL: Use the EXACT phone number format from the input. Do NOT add country codes, "
@@ -242,7 +247,8 @@ class PromptBuilder:
             "Address (ONLY include if actually provided in candidate data - "
             "if not provided, omit this line entirely)\n"
             "If LinkedIn URL or Address is not in the candidate data, do NOT mention them at all. "
-            "Do NOT include placeholder text.\n\n"
+            "Do NOT include placeholder text.\n"
+            "REMEMBER: Only output contact information. No explanations, no reasoning, no notes, no commentary, no analysis.\n\n"
         )
     
     @staticmethod

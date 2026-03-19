@@ -296,7 +296,7 @@ class CVGenerator:
         generated_text = self.generate_text(prompt, use_primary=True)
         
         # Clean the generated content to remove section titles/headings
-        cleaned_text = self._clean_section_content(generated_text, section_name)
+        cleaned_text = ContentCleaner.clean_section_content(generated_text, section_name)
         
         return cleaned_text
     
@@ -454,7 +454,7 @@ Generate the optimized resume:"""
         generated_text = self.generate_text(prompt, use_primary=True)
         
         # Clean the generated content to remove section titles/headings
-        cleaned_text = self._clean_section_content(generated_text, section_name)
+        cleaned_text = ContentCleaner.clean_section_content(generated_text, section_name)
         
         return cleaned_text
     

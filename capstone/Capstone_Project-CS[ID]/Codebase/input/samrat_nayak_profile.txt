@@ -64,29 +64,3 @@ English: Full Professional Proficiency
 French: Professional Working Proficiency
 Hindi: Native or Bilingual Proficiency
 Oriya: Native or Bilingual Proficiency
-
-Job Description:
-
-Team Description
-
-The Search Indexing Platform team is instrumental in facilitating search functionality on Walmart's global sites and applications. We build robust, scalable data pipelines and services, directly influencing key business metrics. Our team harnesses structured and semi-structured data from various sources including product catalogs, inventory systems, social web platforms, transaction records, and query logs. Operating at an unparalleled scale, we devise solutions for critical business issues, catering to the demands of millions of Walmart customers worldwide.
-
-Job Summary
-
-We are in search of a Staff Software Engineer possessing strong expertise in Big Data technologies to be a part of our Search Indexing Platform team. This role is hands-on and demands superior coding skills, robust architectural and design abilities, and the capability of guiding and mentoring a small team of engineers. You will be at the forefront, leading, designing, and developing both business and technology initiatives that address and resolve mission-critical business challenges faced by Walmart customers.
-
-What you'll do
-
-Lead and participate in medium- to large-scale, complex, cross-functional projects by reviewing project, product and business requirements; translating requirements into technical solutions; designing robust and scalable architectures; writing and developing code; conducting unit testing; communicating status and issues to team members and stakeholders; collaborating with cross functional teams; troubleshooting open issues and bug-fixes; enhancing design to prevent re-occurrences of defects; ensuring on-time delivery;
-Provide technical direction, architecture leadership and expertise to the team.
-Lead by example. Show your chops as an exceptional and experienced developer, including thoughtful code reviews, testing, rollout, monitoring, and proactive changes.
-Participate in the discovery phase of medium- to large-sized projects to come up with high level design by partnering with the product management, project management, business, user experience teams, and engineering teams.
-Contribute in all phases of the development life cycle and write well-designed, testable, efficient code.
-Troubleshoot business and production issues by gathering information (for example, issue, impact, criticality, possible root cause) and performing root cause analysis to reduce future issues.
-What you'll bring
-
-Bachelor's degree in computer science and 6 years of experience, or master's degree in computer science and 4 years of experience in building highly distributed, scalable, and fault tolerant Data Pipelines and Java applications.
-Strong hands-on programming experience using Java or another object-oriented language.
-Demonstrated expertise in developing and overseeing large-scale distributed applications, with a focus on scalability, availability, and fault tolerance, utilizing big data technologies such as Spark, Cassandra, Kafka, and Redis.
-Strong grasp of distributed systems architecture and design principles.
-Advanced knowledge of intricate software design, design patterns, data structures, and algorithms.

@@ -57,9 +57,11 @@ def parse_arguments():
     )
     
     parser.add_argument(
-        "input_file",
+        "input_files",
         type=str,
-        help="Path to input file (PDF, DOCX, or TXT) containing unstructured user profile data"
+        nargs='+',
+        help="Path(s) to input file(s) (PDF, DOCX, or TXT) containing unstructured user profile data. "
+             "You can provide multiple files separated by spaces."
     )
     
     parser.add_argument(
@@ -115,30 +117,52 @@ def main():
         elif os.getenv("OPENAI_API_KEY"):
             config.openai_api_key = os.getenv("OPENAI_API_KEY")
         
-        # Check if input file exists
-        input_file = args.input_file
-        if not os.path.exists(input_file):
-            # Try relative to Codebase directory
-            input_file = os.path.join(config.base_dir, args.input_file)
-            if not os.path.exists(input_file):
-                raise FileNotFoundError(f"Input file not found: {args.input_file}")
-        
-        # Step 1: Extract text from input document
-        print("\n[Step 1] Extracting text from input document...")
+        # Step 1: Extract text from input document(s)
+        print("\n[Step 1] Extracting text from input document(s)...")
         extractor = DocumentExtractor()
-        extracted_text = extractor.extract_text(input_file)
-        print(f"✓ Extracted {len(extracted_text)} characters from input document")
         
-        # Step 2: Check for job description in input file
-        print("\n[Step 2] Checking for job description in input file...")
+        # Process multiple input files
+        input_files = args.input_files
+        all_extracted_texts = []
+        valid_files = []
+        
+        for input_file in input_files:
+            # Check if file exists
+            file_path = input_file
+            if not os.path.exists(file_path):
+                # Try relative to Codebase directory
+                file_path = os.path.join(config.base_dir, input_file)
+                if not os.path.exists(file_path):
+                    print(f"⚠ Warning: Input file not found: {input_file} - skipping")
+                    continue
+            
+            try:
+                # Extract text from this file
+                file_text = extractor.extract_text(file_path)
+                all_extracted_texts.append(file_text)
+                valid_files.append(file_path)
+                print(f"  ✓ Extracted {len(file_text)} characters from: {os.path.basename(file_path)}")
+            except Exception as e:
+                print(f"  ⚠ Error extracting from {os.path.basename(file_path)}: {e} - skipping")
+                continue
+        
+        if not all_extracted_texts:
+            raise FileNotFoundError(f"No valid input files found. Checked: {', '.join(input_files)}")
+        
+        # Combine all extracted texts
+        extracted_text = "\n\n".join(all_extracted_texts)
+        print(f"✓ Total extracted {len(extracted_text)} characters from {len(valid_files)} file(s)")
+        
+        # Step 2: Check for job description in input file(s)
+        print("\n[Step 2] Checking for job description in input file(s)...")
         job_parser = JobDescriptionParser()  # Initialize without LLM first for detection
         profile_text, job_description_text = job_parser.separate_profile_and_job_description(extracted_text)
         
         if job_description_text:
-            print("✓ Job description detected in input file")
+            print("✓ Job description detected in input file(s)")
             extracted_text = profile_text  # Use only profile text for resume extraction
         else:
-            print("✓ No job description found in input file")
+            print("✓ No job description found in input file(s)")
         
         # Step 3: Initialize LLM 1 (Fast Model) and LLM 2 (GPT-4o) for optimization
         print("\n[Step 3] Initializing LLM Models...")
@@ -163,7 +187,15 @@ def main():
         print(f"  - Soft Skills: {len(structured_data.get('soft_skills', []))}")
         print(f"  - All Skills: {len(structured_data.get('all_skills', []))}")
         
-        resume_skills = structured_data.get('all_skills', []) + structured_data.get('skills', [])
+        # Collect all skills from various sources
+        resume_skills = []
+        # Add skills from different categories
+        resume_skills.extend(structured_data.get('skills', []))
+        resume_skills.extend(structured_data.get('tools', []))
+        resume_skills.extend(structured_data.get('all_skills', []))
+        # Remove duplicates while preserving order
+        seen = set()
+        resume_skills = [s for s in resume_skills if s and not (s.lower() in seen or seen.add(s.lower()))]
         
         # Step 5: Handle job description for CV tailoring
         job_requirements = None
@@ -349,12 +381,22 @@ def main():
         # Get clean candidate name for display (without quotes)
         candidate_name = raw_name
         
+        # Step 11a: Save initial CV before feedback loop
+        print("\n[Step 11a] Saving initial CV...")
+        formatter.format_cv(
+            cv_sections,
+            output_path,
+            format_type=args.format,
+            candidate_name=candidate_name
+        )
+        print(f"✓ Initial CV saved to: {output_path}")
+        
         while True:
             # Display current CV preview
             display_cv_preview(cv_sections, iteration)
             
-            # Get user feedback
-            feedback_dict = get_user_feedback(cv_sections)
+            # Get user feedback (pass cv_generator for LLM-based parsing)
+            feedback_dict = get_user_feedback(cv_sections, cv_generator)
             
             # Check if user wants to stop
             if '_stop' in feedback_dict:
@@ -373,26 +415,37 @@ def main():
             
             # Apply feedback and regenerate sections
             print("\n[Processing feedback and regenerating sections...]")
-            section_feedback = apply_feedback_to_sections(cv_sections, feedback_dict)
+            section_feedback = apply_feedback_to_sections(cv_sections, feedback_dict, cv_generator)
             
             if section_feedback:
                 cv_sections = cv_generator.regenerate_multiple_sections_with_feedback(
                     cv_sections, structured_data, section_feedback, job_requirements
                 )
                 print("✓ CV sections updated based on your feedback")
+                
+                # Save updated CV after regeneration
+                print(f"\n[Saving updated CV (iteration {iteration + 1})...]")
+                formatter.format_cv(
+                    cv_sections,
+                    output_path,
+                    format_type=args.format,
+                    candidate_name=candidate_name
+                )
+                print(f"✓ Updated CV saved to: {output_path}")
             else:
                 print("⚠ No valid feedback to process")
             
             iteration += 1
         
-        # Step 12: Format and save final CV
-        print("\n[Step 12] Formatting and saving final CV...")
+        # Step 12: Save final CV (ensures latest version is saved)
+        print("\n[Step 12] Saving final CV...")
         formatter.format_cv(
             cv_sections,
             output_path,
             format_type=args.format,
             candidate_name=candidate_name
         )
+        print(f"✓ Final CV saved to: {output_path}")
         
         # Print summary
         print("\n" + "=" * 80)

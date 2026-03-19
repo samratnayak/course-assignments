@@ -128,7 +128,7 @@ class ContentCleaner:
     @staticmethod
     def _clean_personal_information(content: str) -> str:
         """
-        Clean Personal Information section - remove Contact Information and placeholders.
+        Clean Personal Information section - remove Contact Information, placeholders, and LLM reasoning.
         
         Args:
             content: Content to clean
@@ -138,6 +138,52 @@ class ContentCleaner:
         """
         lines = content.split('\n')
         filtered_lines = []
+        
+        # Patterns that indicate LLM reasoning/explanation text
+        reasoning_patterns = [
+            r'^please note',
+            r'^however',
+            r'^therefore',
+            r'^while',
+            r'^it should be noted',
+            r'^note that',
+            r'^keep in mind',
+            r'^important to note',
+            r'^worth noting',
+            r'^additionally',
+            r'^furthermore',
+            r'^moreover',
+            r'^in addition',
+            r'^on the other hand',
+            r'^that being said',
+            r'^as mentioned',
+            r'^as stated',
+            r'^as indicated',
+            r'^as shown',
+            r'^as demonstrated',
+            r'^cannot confirm',
+            r'^cannot verify',
+            r'^suggests that',
+            r'^indicates that',
+            r'^implies that',
+            r'^appears to',
+            r'^seems to',
+            r'^likely',
+            r'^probably',
+            r'^possibly',
+            r'^may have',
+            r'^might have',
+            r'^could have',
+            r'^their experience',
+            r'^their skillset',
+            r'^their qualifications',
+            r'^meet the requirement',
+            r'^align with',
+            r'^relevant experience',
+            r'^years of experience',
+            r'^bachelor\'s degree',
+            r'^master\'s degree',
+        ]
         
         for line in lines:
             line_stripped = line.strip()
@@ -152,6 +198,34 @@ class ContentCleaner:
             
             # Skip placeholder lines
             if ContentCleaner._is_placeholder_line(line_stripped, line_lower):
+                continue
+            
+            # Skip LLM reasoning/explanation lines
+            is_reasoning = False
+            for pattern in reasoning_patterns:
+                if re.search(pattern, line_lower):
+                    is_reasoning = True
+                    break
+            
+            # Also check for long sentences that don't look like contact info
+            # Contact info is typically short (email, phone, URL, address)
+            if not is_reasoning and len(line_stripped) > 100:
+                # Check if it contains typical contact info patterns
+                contact_patterns = [
+                    r'@',  # Email
+                    r'^\d',  # Phone number starting with digit
+                    r'http',  # URL
+                    r'www\.',  # URL
+                    r'linkedin\.com',  # LinkedIn
+                    r'^\w+\.\w+@\w+\.\w+',  # Email pattern
+                ]
+                has_contact_pattern = any(re.search(pattern, line_stripped, re.IGNORECASE) for pattern in contact_patterns)
+                
+                if not has_contact_pattern:
+                    # Long line without contact info pattern - likely reasoning text
+                    is_reasoning = True
+            
+            if is_reasoning:
                 continue
             
             filtered_lines.append(line)

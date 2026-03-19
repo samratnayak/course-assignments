@@ -108,6 +108,31 @@ class DocumentExtractor:
         else:
             raise ValueError(f"Unsupported file format: {file_ext}")
     
+    def extract_from_multiple_files(self, file_paths: list) -> str:
+        """
+        Extract text from multiple files and combine them.
+        
+        Args:
+            file_paths: List of paths to document files
+            
+        Returns:
+            Combined extracted text as string
+        """
+        all_texts = []
+        for file_path in file_paths:
+            try:
+                text = self.extract_text(file_path)
+                all_texts.append(text)
+            except Exception as e:
+                print(f"Warning: Failed to extract from {file_path}: {e}")
+                continue
+        
+        if not all_texts:
+            raise ValueError("No text could be extracted from any of the provided files")
+        
+        # Combine texts with separator
+        return "\n\n".join(all_texts)
+    
     def extract_to_json(self, file_path: str, output_path: Optional[str] = None) -> Dict:
         """
         Extract text from document and save as JSON.

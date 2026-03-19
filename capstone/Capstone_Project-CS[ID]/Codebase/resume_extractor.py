@@ -45,8 +45,8 @@ Resume Text:
 
 Extract and return in this exact format:
 {{
-  "skills": ["Python", "Machine Learning", "Docker"],
-  "tools": ["TensorFlow", "Git", "AWS"],
+  "skills": ["Python", "Machine Learning", "Docker", "Java", "Spring Boot"],
+  "tools": ["TensorFlow", "Git", "AWS", "Spark", "Kafka"],
   "soft_skills": ["communication", "teamwork", "leadership"],
   "name": "Full Name of the Candidate (first line of resume, not project names)",
   "contact": {{
@@ -64,7 +64,13 @@ IMPORTANT:
 - The name is typically the first line before contact information
 - For phone numbers: Use the EXACT format from the input. Do NOT add country codes, ISD codes (like +1, +91, +44), or '+' prefix. 
   If the input shows '8866835339', extract it as '8866835339' without adding any country code.
-- Focus on extracting ALL skills, tools, and technologies mentioned. Be comprehensive."""
+- CRITICAL for skills extraction: Extract ALL individual technologies and skills mentioned, even if they appear in groups.
+  For example, if you see "Big Data Technologies: Spark, Cassandra, Kafka, Redis", extract each individually:
+  ["Spark", "Cassandra", "Kafka", "Redis"] in addition to or instead of the group name.
+  If you see "Java, Spring Boot, SQL", extract each as separate items: ["Java", "Spring Boot", "SQL"].
+  Be VERY comprehensive and extract every technology, framework, tool, and skill mentioned in the resume.
+- Extract skills from ALL sections: Work Experience, Skills, Projects, Certifications, etc.
+- Include both programming languages and technologies/frameworks."""
         
         return prompt
     
@@ -78,6 +84,9 @@ IMPORTANT:
         Returns:
             Dictionary containing extracted resume information with structured skills
         """
+        # Store original text for fallback skill extraction
+        original_text = text
+        
         # Create extraction prompt
         prompt = self.create_extraction_prompt(text)
         
@@ -90,6 +99,9 @@ IMPORTANT:
         
         # Try to parse JSON from LLM output
         structured_data = self._parse_json_extraction(extracted_text, text)
+        
+        # Store original text for fallback skill extraction
+        original_text = text
         
         # Fallback to text parsing if JSON parsing fails or name is invalid
         json_name = structured_data.get("name", "")
@@ -236,7 +248,68 @@ IMPORTANT:
         all_skills = structured_data["skills"] + structured_data["tools"]
         structured_data["all_skills"] = all_skills
         
+        # Fallback: Extract skills directly from text to supplement LLM extraction
+        # This helps catch skills that might have been missed by the LLM
+        text_based_skills = self._extract_skills_from_text(original_text)
+        if text_based_skills:
+            # Merge without duplicates
+            existing_lower = {s.lower() for s in all_skills}
+            new_skills_added = 0
+            for skill in text_based_skills:
+                if skill.lower() not in existing_lower:
+                    structured_data["skills"].append(skill)
+                    all_skills.append(skill)
+                    new_skills_added += 1
+            if new_skills_added > 0:
+                structured_data["all_skills"] = all_skills
+                print(f"  - Added {new_skills_added} additional skills from text-based extraction")
+        
         return structured_data
+    
+    def _extract_skills_from_text(self, text: str) -> List[str]:
+        """
+        Extract skills directly from resume text using keyword matching.
+        This is a fallback method to catch skills that LLM might have missed.
+        
+        Args:
+            text: Resume text
+            
+        Returns:
+            List of extracted skills
+        """
+        import re
+        
+        # Common technical skills and technologies
+        common_skills = [
+            # Programming Languages
+            "Java", "Python", "JavaScript", "TypeScript", "C++", "C#", "Go", "Rust", "Kotlin", "Swift",
+            "Scala", "Ruby", "PHP", "Perl", "R", "MATLAB",
+            # Web Technologies
+            "HTML", "CSS", "React", "Angular", "Vue", "Node.js", "Express", "Django", "Flask",
+            "Spring", "Spring Boot", "Hibernate", "JSP", "Servlet",
+            # Databases
+            "SQL", "MySQL", "PostgreSQL", "MongoDB", "Oracle", "SQL Server", "SQLite", "Redis",
+            "Cassandra", "DynamoDB", "Elasticsearch",
+            # Big Data & Cloud
+            "Spark", "Hadoop", "Kafka", "AWS", "Azure", "GCP", "Docker", "Kubernetes", "Terraform",
+            "Ansible", "Jenkins", "Git", "GitHub", "GitLab", "CI/CD",
+            # Machine Learning & AI
+            "Machine Learning", "Deep Learning", "TensorFlow", "PyTorch", "Scikit-learn", "Pandas",
+            "NumPy", "NLP", "Computer Vision",
+            # Other Technologies
+            "REST", "GraphQL", "Microservices", "Agile", "Scrum", "DevOps", "Linux", "Bash"
+        ]
+        
+        found_skills = []
+        text_lower = text.lower()
+        
+        for skill in common_skills:
+            # Use word boundary matching to avoid partial matches
+            pattern = r'\b' + re.escape(skill.lower()) + r'\b'
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                found_skills.append(skill)
+        
+        return found_skills
     
     def _parse_extracted_text(self, extracted_text: str, original_text: str) -> Dict:
         """

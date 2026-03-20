@@ -1,5 +1,8 @@
+# Basic execution (requires OPENAI_API_KEY environment variable) with input file containing personal information & job description
+python main.py input/sample_profile.txt
+
 # Basic execution (requires OPENAI_API_KEY environment variable)
-python main.py input/sample_profile.txt -o output/cv_output.docx -f docx
+python main.py input/sample_profile.txt -o output/cv_output.docx
 
 # With multiple input files
 # python main.py input/file1.txt input/file2.pdf input/file3.txt -o output/cv_output.docx -f docx

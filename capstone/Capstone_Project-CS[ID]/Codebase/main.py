@@ -41,6 +41,7 @@ from skill_matcher import SkillMatcher
 from ats_scorer import ATSScorer
 from resume_optimizer import ResumeOptimizer
 from cv_utils import display_cv_preview, get_user_feedback, apply_feedback_to_sections
+from cv_document_styles import DEFAULT_DOCUMENT_STYLE, label_for_style
 
 
 
@@ -363,6 +364,7 @@ def main():
         print("=" * 80)
         
         iteration = 1
+        document_style = DEFAULT_DOCUMENT_STYLE
         formatter = CVFormatter()
         
         # Validate and sanitize candidate name
@@ -397,24 +399,38 @@ def main():
             cv_sections,
             output_path,
             format_type=args.format,
-            candidate_name=candidate_name
+            candidate_name=candidate_name,
+            document_style=document_style,
         )
         print(f"✓ Initial CV saved to: {output_path}")
+        
+        style_menu_dir = (
+            config.base_dir if args.format.lower() in ("docx", "pdf") else None
+        )
         
         while True:
             # Display current CV preview
             display_cv_preview(cv_sections, iteration)
             
             # Get user feedback (pass cv_generator for LLM-based parsing)
-            feedback_dict = get_user_feedback(cv_sections, cv_generator)
+            feedback_dict = get_user_feedback(
+                cv_sections,
+                cv_generator,
+                codebase_dir=style_menu_dir,
+                current_document_style=document_style,
+            )
             
             # Check if user wants to stop
             if '_stop' in feedback_dict:
                 print("\n✓ Finalizing CV based on your feedback...")
                 break
             
-            # Check if there's any feedback to process
-            if not feedback_dict:
+            new_doc_style = feedback_dict.pop('_document_style', None)
+            if new_doc_style:
+                document_style = new_doc_style
+                print(f"\n✓ Document layout: {label_for_style(document_style)}")
+            
+            if not feedback_dict and not new_doc_style:
                 print("\n✓ No changes requested. Keeping current version.")
                 # Ask if user wants to continue or stop
                 continue_choice = input("\nWould you like to continue refining? (yes/no): ").strip().lower()
@@ -423,28 +439,35 @@ def main():
                 iteration += 1
                 continue
             
-            # Apply feedback and regenerate sections
-            print("\n[Processing feedback and regenerating sections...]")
-            section_feedback = apply_feedback_to_sections(cv_sections, feedback_dict, cv_generator)
-            
-            if section_feedback:
-                cv_sections = cv_generator.regenerate_multiple_sections_with_feedback(
-                    cv_sections, structured_data, section_feedback, job_requirements
+            section_feedback = {}
+            if feedback_dict:
+                print("\n[Processing feedback and regenerating sections...]")
+                section_feedback = apply_feedback_to_sections(
+                    cv_sections, feedback_dict, cv_generator
                 )
-                print("✓ CV sections updated based on your feedback")
-                
-                # Save updated CV after regeneration
-                print(f"\n[Saving updated CV (iteration {iteration + 1})...]")
+                if section_feedback:
+                    cv_sections = cv_generator.regenerate_multiple_sections_with_feedback(
+                        cv_sections, structured_data, section_feedback, job_requirements
+                    )
+                    print("✓ CV sections updated based on your feedback")
+                else:
+                    print("⚠ No valid section feedback to process")
+
+            # Re-export when section text changed and/or document layout changed (layout applies to docx/pdf only)
+            export_visual = args.format.lower() in ("docx", "pdf")
+            if section_feedback or (new_doc_style and export_visual):
+                print(f"\n[Saving CV (iteration {iteration + 1})...]")
                 formatter.format_cv(
                     cv_sections,
                     output_path,
                     format_type=args.format,
-                    candidate_name=candidate_name
+                    candidate_name=candidate_name,
+                    document_style=document_style,
                 )
-                print(f"✓ Updated CV saved to: {output_path}")
-            else:
-                print("⚠ No valid feedback to process")
-            
+                print(f"✓ CV saved to: {output_path}")
+            elif new_doc_style and not export_visual:
+                print("ℹ Layout styles apply to DOCX/PDF only; output is plain text — skipping layout re-export.")
+
             iteration += 1
         
         # Step 12: Save final CV (ensures latest version is saved)
@@ -453,7 +476,8 @@ def main():
             cv_sections,
             output_path,
             format_type=args.format,
-            candidate_name=candidate_name
+            candidate_name=candidate_name,
+            document_style=document_style,
         )
         print(f"✓ Final CV saved to: {output_path}")
         
@@ -461,7 +485,7 @@ def main():
         print("\n" + "=" * 80)
         print("CV GENERATION COMPLETE!")
         print("=" * 80)
-        print(f"Input: {input_file}")
+        print(f"Input: {', '.join(valid_files)}")
         print(f"Output: {output_path}")
         print(f"Format: {args.format.upper()}")
         print(f"Iterations: {iteration}")

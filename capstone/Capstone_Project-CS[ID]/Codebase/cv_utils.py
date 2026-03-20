@@ -11,6 +11,13 @@ from typing import Dict, Optional
 import json
 import re
 
+from cv_document_styles import (
+    DEFAULT_DOCUMENT_STYLE,
+    get_style_menu_lines,
+    label_for_style,
+    resolve_document_style,
+)
+
 
 def display_cv_preview(cv_sections: Dict[str, str], iteration: int = 1) -> None:
     """
@@ -36,16 +43,24 @@ def display_cv_preview(cv_sections: Dict[str, str], iteration: int = 1) -> None:
     print("\n" + "=" * 80)
 
 
-def get_user_feedback(cv_sections: Dict[str, str], cv_generator=None) -> Dict[str, str]:
+def get_user_feedback(
+    cv_sections: Dict[str, str],
+    cv_generator=None,
+    codebase_dir: Optional[str] = None,
+    current_document_style: Optional[str] = None,
+) -> Dict[str, str]:
     """
     Get feedback from user for CV sections using LLM for conversational understanding.
-    
+    Optionally records a document layout style for the next export (DOCX/PDF only).
+
     Args:
         cv_sections: Dictionary of current CV sections (for intelligent routing)
         cv_generator: Optional CVGenerator instance for LLM-based parsing
-    
+        codebase_dir: Project Codebase directory (for sample file paths)
+        current_document_style: Active document style id
+
     Returns:
-        Dictionary mapping section names to feedback strings, or empty dict if no feedback
+        Section feedback dict, optional '_document_style' id, or '_stop'
     """
     print("\n" + "=" * 80)
     print("FEEDBACK OPTIONS")
@@ -55,24 +70,35 @@ def get_user_feedback(cv_sections: Dict[str, str], cv_generator=None) -> Dict[st
     print("- 'Remove the last skill and add it to certifications'")
     print("- 'Update my work experience to highlight leadership'")
     print("- Type 'stop', 'done', 'exit', or 'quit' to finish and save the CV")
-    print("- Type 'skip' or press Enter to keep current version and continue")
+    print("- Type 'skip' or press Enter to keep section text unchanged this round")
+    print("After that, you can optionally pick a document layout (see sample .docx files).")
+    cur_style = current_document_style or DEFAULT_DOCUMENT_STYLE
+    print(f"Current document layout: {label_for_style(cur_style)}")
     print("=" * 80)
-    
+
     user_input = input("\nEnter your feedback (or 'stop' to finish): ").strip()
-    
-    if not user_input or user_input.lower() in ['skip', '']:
-        return {}
-    
+
     if user_input.lower() in ['stop', 'done', 'exit', 'quit', 'finish']:
         return {'_stop': True}
-    
-    # Use LLM to parse feedback conversationally
-    if cv_generator:
-        feedback_dict = _parse_feedback_with_llm(user_input, cv_sections, cv_generator)
-    else:
-        # Fallback to simple parsing if LLM not available
-        feedback_dict = _parse_feedback_simple(user_input, cv_sections)
-    
+
+    feedback_dict = {}
+    if user_input and user_input.lower() not in ['skip']:
+        if cv_generator:
+            feedback_dict = _parse_feedback_with_llm(user_input, cv_sections, cv_generator)
+        else:
+            feedback_dict = _parse_feedback_simple(user_input, cv_sections)
+
+    if codebase_dir:
+        print("\nDocument layout (optional — affects DOCX/PDF export only; open samples to compare):")
+        for line in get_style_menu_lines(codebase_dir):
+            print(line)
+        style_in = input(
+            "\nLayout number or id (Enter = keep current): "
+        ).strip()
+        new_style = resolve_document_style(style_in, cur_style)
+        if new_style:
+            feedback_dict['_document_style'] = new_style
+
     return feedback_dict
 
 

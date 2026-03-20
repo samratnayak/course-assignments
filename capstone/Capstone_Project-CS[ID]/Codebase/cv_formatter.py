@@ -5,13 +5,39 @@ This module handles formatting and exporting CVs to DOCX and PDF formats.
 """
 
 import os
+import re
 from docx import Document
 from docx.shared import Pt, Inches, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from typing import Dict, Optional, List
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+from typing import Dict, Optional, List, Any
 import warnings
 
 warnings.filterwarnings("ignore")
+
+# Document.add_paragraph and table cell both support add_paragraph
+_AddParagraphParent = Any
+
+
+def _set_cell_shading(cell, fill_hex: str) -> None:
+    """Light background for sidebar cells (e.g. F0F4F7)."""
+    tc_pr = cell._tc.get_or_add_tcPr()
+    shd = OxmlElement("w:shd")
+    shd.set(qn("w:fill"), fill_hex)
+    tc_pr.append(shd)
+
+
+def _set_paragraph_bottom_border(paragraph, color: str = "A0A0A0", size: str = "4") -> None:
+    p_pr = paragraph._element.get_or_add_pPr()
+    p_bdr = OxmlElement("w:pBdr")
+    bottom = OxmlElement("w:bottom")
+    bottom.set(qn("w:val"), "single")
+    bottom.set(qn("w:sz"), size)
+    bottom.set(qn("w:space"), "1")
+    bottom.set(qn("w:color"), color)
+    p_bdr.append(bottom)
+    p_pr.append(p_bdr)
 
 
 class CVFormatter:
@@ -49,18 +75,29 @@ class CVFormatter:
         
         return text
     
-    def format_to_docx(self, cv_sections: Dict[str, str], output_path: str, candidate_name: str = "Candidate"):
+    def format_to_docx(
+        self,
+        cv_sections: Dict[str, str],
+        output_path: str,
+        candidate_name: str = "Candidate",
+        document_style: str = "default",
+    ):
         """
-        Format CV sections into a modern, visually appealing DOCX document.
-        
-        Args:
-            cv_sections: Dictionary of CV sections
-            output_path: Path to save the DOCX file
-            candidate_name: Name of the candidate for header
+        Export CV to DOCX. ``document_style`` only changes document layout, not section text.
         """
-        # Create a new Document
         doc = Document()
-        
+        style_key = (document_style or "default").strip().lower()
+        if style_key == "sidebar_modern":
+            self._format_to_docx_sidebar_modern(doc, cv_sections, candidate_name)
+        elif style_key == "classic_serif":
+            self._format_to_docx_classic_serif(doc, cv_sections, candidate_name)
+        else:
+            self._format_to_docx_default(doc, cv_sections, candidate_name)
+        doc.save(output_path)
+        print(f"CV saved to: {output_path}")
+
+    def _format_to_docx_default(self, doc: Document, cv_sections: Dict[str, str], candidate_name: str) -> None:
+        """Original centered-name, blue-accent single-column layout."""
         # Set compact document margins for 2-3 page CV
         sections = doc.sections
         for section in sections:
@@ -107,7 +144,6 @@ class CVFormatter:
                 
                 # Special cleaning for Personal Information - remove "Contact Information" heading and placeholders
                 if section_name == "Personal Information":
-                    import re
                     # Remove "Contact Information" lines and placeholders
                     lines = section_content.split('\n')
                     filtered_lines = []
@@ -148,9 +184,9 @@ class CVFormatter:
                                 continue
                         filtered_lines.append(line)
                     section_content = '\n'.join(filtered_lines).strip()
-                
-            paragraphs = section_content.split('\n')
-            for para_text in paragraphs:
+
+                paragraphs = section_content.split('\n')
+                for para_text in paragraphs:
                     para_text = para_text.strip()
                     if not para_text:
                         continue
@@ -166,7 +202,6 @@ class CVFormatter:
                         if para_lower.startswith('contact information') and len(para_lower.replace('contact information', '').replace(':', '').strip()) < 5:
                             continue
                         # Check for placeholder patterns
-                        import re
                         placeholder_patterns = [
                             r'\[linkedin\s+url\s+if\s+provided\]',
                             r'\[address\s+if\s+provided\]',
@@ -219,23 +254,18 @@ class CVFormatter:
                         for run in para.runs:
                             run.font.size = Pt(11)
                             run.font.color.rgb = RGBColor(44, 62, 80)  # Dark blue-gray
-            
-            # Add spacing between sections
-            doc.add_paragraph()
-        
-        # Save document
-        doc.save(output_path)
-        print(f"CV saved to: {output_path}")
+
+                # Add spacing between sections
+                doc.add_paragraph()
     
-    def _format_work_experience_section(self, doc, section_content: str):
+    def _format_work_experience_section(self, parent: _AddParagraphParent, section_content: str):
         """
         Format Work Experience section with bold subheadings for Company, Position, and Dates.
         
         Args:
-            doc: Document object
+            parent: Document or table cell (supports add_paragraph)
             section_content: Content of the work experience section
         """
-        import re
         
         # Remove markdown formatting (asterisks) from the entire content first
         section_content = re.sub(r'\*\*([^*]+)\*\*', r'\1', section_content)  # Remove **bold**
@@ -297,7 +327,7 @@ class CVFormatter:
                 
                 # Save previous entry if exists and we're starting a new one
                 if (current_company or current_position) and (current_bullets or current_dates):
-                    self._add_work_experience_entry(doc, current_company, current_position, current_dates, current_bullets)
+                    self._add_work_experience_entry(parent, current_company, current_position, current_dates, current_bullets)
                     current_company = None
                     current_position = None
                     current_dates = None
@@ -369,21 +399,20 @@ class CVFormatter:
         
         # Add last entry
         if current_company or current_position:
-            self._add_work_experience_entry(doc, current_company, current_position, current_dates, current_bullets)
+            self._add_work_experience_entry(parent, current_company, current_position, current_dates, current_bullets)
     
-    def _add_work_experience_entry(self, doc, company: Optional[str], position: Optional[str], 
+    def _add_work_experience_entry(self, parent: _AddParagraphParent, company: Optional[str], position: Optional[str], 
                                    dates: Optional[str], bullets: List[str]):
         """
         Add a work experience entry with formatted subheadings.
         
         Args:
-            doc: Document object
+            parent: Document or table cell
             company: Company name
             position: Job position/title
             dates: Date range
             bullets: List of bullet points
         """
-        import re
         
         # Clean quotes and markdown from all fields
         if position:
@@ -404,7 +433,7 @@ class CVFormatter:
         
         # Add position (bold) with compact spacing
         if position:
-            pos_para = doc.add_paragraph()
+            pos_para = parent.add_paragraph()
             pos_run = pos_para.add_run(position)
             pos_run.font.size = Pt(11)
             pos_run.font.bold = True
@@ -413,7 +442,7 @@ class CVFormatter:
         
         # Add company (bold) with compact spacing
         if company:
-            comp_para = doc.add_paragraph()
+            comp_para = parent.add_paragraph()
             comp_run = comp_para.add_run(company)
             comp_run.font.size = Pt(10)
             comp_run.font.bold = True
@@ -422,7 +451,7 @@ class CVFormatter:
         
         # Add dates (bold) with compact spacing
         if dates:
-            date_para = doc.add_paragraph()
+            date_para = parent.add_paragraph()
             date_run = date_para.add_run(dates)
             date_run.font.size = Pt(10)
             date_run.font.bold = True
@@ -432,7 +461,7 @@ class CVFormatter:
         
         # Add bullet points with compact spacing
         for bullet in bullets:
-            para = doc.add_paragraph(bullet, style='List Bullet')
+            para = parent.add_paragraph(bullet, style='List Bullet')
             para_format = para.paragraph_format
             para_format.space_after = Pt(3)
             para_format.left_indent = Inches(0.25)
@@ -443,8 +472,296 @@ class CVFormatter:
                 run.font.color.rgb = RGBColor(44, 62, 80)  # Dark blue-gray
         
         # Add minimal spacing after entry
-        spacing_para = doc.add_paragraph()
+        spacing_para = parent.add_paragraph()
         spacing_para.paragraph_format.space_after = Pt(4)
+
+    def _sidebar_column_heading(self, cell, title: str) -> None:
+        p = cell.add_paragraph()
+        r = p.add_run(title.upper())
+        r.font.bold = True
+        r.font.size = Pt(9)
+        r.font.name = "Calibri"
+        r.font.color.rgb = RGBColor(30, 30, 30)
+        p.paragraph_format.space_before = Pt(10)
+        p.paragraph_format.space_after = Pt(2)
+        u = cell.add_paragraph()
+        ur = u.add_run("―" * 18)
+        ur.font.size = Pt(6)
+        ur.font.color.rgb = RGBColor(160, 170, 180)
+
+    def _append_plain_section_body(
+        self,
+        parent: _AddParagraphParent,
+        section_name: str,
+        section_content: str,
+        body_pt: int = 9,
+        font_name: str = "Calibri",
+        body_color: RGBColor = None,
+    ) -> None:
+        if body_color is None:
+            body_color = RGBColor(40, 55, 70)
+        section_content = self._remove_quotes_from_text(section_content)
+        if section_name == "Personal Information":
+            lines = section_content.split("\n")
+            filtered_lines = []
+            for line in lines:
+                line_stripped = line.strip()
+                if not line_stripped:
+                    continue
+                line_lower = line_stripped.lower()
+                if line_lower in ["contact information", "contact information:", "contact information :"]:
+                    continue
+                if line_lower.startswith("contact information"):
+                    remaining = line_lower.replace("contact information", "").replace(":", "").strip()
+                    if len(remaining) < 5:
+                        continue
+                placeholder_patterns = [
+                    r"\[linkedin\s+url\s+if\s+provided\]",
+                    r"\[address\s+if\s+provided\]",
+                    r"\[linkedin\s+url\s+if\s+available\]",
+                    r"\[address\s+if\s+available\]",
+                ]
+                if any(re.search(p, line_lower) for p in placeholder_patterns):
+                    continue
+                if line_stripped.startswith("[") and line_stripped.endswith("]"):
+                    if any(k in line_lower for k in ["if provided", "if available", "linkedin", "address"]):
+                        continue
+                filtered_lines.append(line)
+            section_content = "\n".join(filtered_lines).strip()
+
+        for para_text in section_content.split("\n"):
+            para_text = para_text.strip()
+            if not para_text:
+                continue
+            para_text = self._remove_quotes_from_text(para_text)
+            if section_name == "Personal Information":
+                pl = para_text.lower().strip()
+                if pl in ["contact information", "contact information:", "contact information :"]:
+                    continue
+                if pl.startswith("contact information") and len(pl.replace("contact information", "").replace(":", "").strip()) < 5:
+                    continue
+            snu = section_name.upper()
+            if snu in para_text.upper() and len(para_text) < 50:
+                if para_text.upper() == snu or para_text.upper().startswith(snu):
+                    continue
+            if para_text.startswith("-") or para_text.startswith("•") or para_text.startswith("*"):
+                bullet_text = para_text.lstrip("- •*").strip().strip('"').strip("'")
+                if bullet_text:
+                    para = parent.add_paragraph(bullet_text, style="List Bullet")
+                    para.paragraph_format.space_after = Pt(2)
+                    para.paragraph_format.left_indent = Inches(0.18)
+                    para.paragraph_format.first_line_indent = Inches(-0.18)
+                    for run in para.runs:
+                        run.font.size = Pt(body_pt)
+                        run.font.name = font_name
+                        run.font.color.rgb = body_color
+            else:
+                para = parent.add_paragraph(para_text)
+                para.paragraph_format.space_after = Pt(2)
+                for run in para.runs:
+                    run.font.size = Pt(body_pt)
+                    run.font.name = font_name
+                    run.font.color.rgb = body_color
+
+    def _format_to_docx_sidebar_modern(
+        self, doc: Document, cv_sections: Dict[str, str], candidate_name: str
+    ) -> None:
+        """Two-column table: shaded left column for contact/education/skills; main body on the right."""
+        for section in doc.sections:
+            section.top_margin = Inches(0.45)
+            section.bottom_margin = Inches(0.45)
+            section.left_margin = Inches(0.55)
+            section.right_margin = Inches(0.55)
+
+        order = [
+            "Personal Information",
+            "Professional Summary",
+            "Work Experience",
+            "Education",
+            "Skills",
+            "Certifications",
+            "Projects",
+            "Languages",
+        ]
+        left_sections = frozenset(
+            {"Personal Information", "Education", "Skills", "Certifications", "Languages"}
+        )
+
+        table = doc.add_table(rows=1, cols=2)
+        table.autofit = False
+        cell_l = table.rows[0].cells[0]
+        cell_r = table.rows[0].cells[1]
+        cell_l.width = Inches(2.35)
+        cell_r.width = Inches(4.55)
+        _set_cell_shading(cell_l, "F0F4F7")
+
+        hp = cell_l.add_paragraph()
+        hr = hp.add_run(candidate_name.strip().upper())
+        hr.font.bold = True
+        hr.font.size = Pt(15)
+        hr.font.name = "Calibri"
+        hr.font.color.rgb = RGBColor(26, 54, 93)
+        # Professional Summary stays in the right column only (no tagline under the name here;
+        # a truncated first line did not fit the narrow sidebar).
+        hp.paragraph_format.space_after = Pt(10)
+
+        for name in order:
+            if name not in cv_sections or name == "Professional Summary":
+                continue
+            if name not in left_sections:
+                continue
+            content = cv_sections[name]
+            if name == "Personal Information":
+                lines = [ln.strip() for ln in content.split("\n") if ln.strip()]
+                c_low = candidate_name.strip().lower()
+                rest = [ln for ln in lines if ln.strip().lower() != c_low]
+                content = "\n".join(rest) if rest else content
+            self._sidebar_column_heading(cell_l, name)
+            self._append_plain_section_body(cell_l, name, content, body_pt=8)
+
+        for name in order:
+            if name not in cv_sections:
+                continue
+            if name in left_sections:
+                continue
+            content = cv_sections[name]
+            self._sidebar_column_heading(cell_r, name)
+            if name.lower() in ["work experience", "experience"]:
+                self._format_work_experience_section(cell_r, content)
+            else:
+                self._append_plain_section_body(cell_r, name, content, body_pt=10)
+
+        for name, content in cv_sections.items():
+            if name in order:
+                continue
+            self._sidebar_column_heading(cell_r, name)
+            if name.lower() in ["work experience", "experience"]:
+                self._format_work_experience_section(cell_r, content)
+            else:
+                self._append_plain_section_body(cell_r, name, content, body_pt=10)
+
+    def _format_to_docx_classic_serif(
+        self, doc: Document, cv_sections: Dict[str, str], candidate_name: str
+    ) -> None:
+        """Single column, Times New Roman, centered header, rules under section titles."""
+        for section in doc.sections:
+            section.top_margin = Inches(0.65)
+            section.bottom_margin = Inches(0.65)
+            section.left_margin = Inches(0.85)
+            section.right_margin = Inches(0.85)
+
+        title = doc.add_paragraph()
+        tr = title.add_run(candidate_name)
+        tr.font.name = "Times New Roman"
+        tr.font.size = Pt(20)
+        tr.font.bold = True
+        tr.font.color.rgb = RGBColor(0, 0, 0)
+        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        title.paragraph_format.space_after = Pt(4)
+
+        pi = cv_sections.get("Personal Information", "")
+        pi = self._remove_quotes_from_text(pi)
+        for line in pi.split("\n"):
+            line = line.strip()
+            if not line:
+                continue
+            if line.lower() == candidate_name.strip().lower():
+                continue
+            cp = doc.add_paragraph()
+            cr = cp.add_run(line)
+            cr.font.name = "Times New Roman"
+            cr.font.size = Pt(10)
+            cp.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            cp.paragraph_format.space_after = Pt(0)
+
+        doc.add_paragraph()
+
+        order = [
+            "Professional Summary",
+            "Education",
+            "Skills",
+            "Work Experience",
+            "Projects",
+            "Certifications",
+            "Languages",
+        ]
+        seen = set()
+        ink = RGBColor(0, 0, 0)
+
+        def render_block(section_name: str, section_content: str) -> None:
+            hp = doc.add_paragraph()
+            hr = hp.add_run(section_name.upper())
+            hr.font.name = "Times New Roman"
+            hr.font.size = Pt(11)
+            hr.font.bold = True
+            hr.font.color.rgb = ink
+            hp.paragraph_format.space_before = Pt(10)
+            hp.paragraph_format.space_after = Pt(4)
+            _set_paragraph_bottom_border(hp, color="B0B0B0", size="6")
+            if section_name.lower() in ["work experience", "experience"]:
+                self._format_work_experience_classic(doc, section_content)
+            else:
+                section_content = self._remove_quotes_from_text(section_content)
+                if section_name == "Personal Information":
+                    return
+                for para_text in section_content.split("\n"):
+                    para_text = para_text.strip()
+                    if not para_text:
+                        continue
+                    para_text = self._remove_quotes_from_text(para_text)
+                    if para_text.startswith("-") or para_text.startswith("•") or para_text.startswith("*"):
+                        bt = para_text.lstrip("- •*").strip()
+                        if bt:
+                            para = doc.add_paragraph(bt, style="List Bullet")
+                            para.paragraph_format.space_after = Pt(3)
+                            for run in para.runs:
+                                run.font.name = "Times New Roman"
+                                run.font.size = Pt(11)
+                                run.font.color.rgb = ink
+                    else:
+                        para = doc.add_paragraph(para_text)
+                        para.paragraph_format.space_after = Pt(3)
+                        for run in para.runs:
+                            run.font.name = "Times New Roman"
+                            run.font.size = Pt(11)
+                            run.font.color.rgb = ink
+
+        for name in order:
+            if name in cv_sections:
+                render_block(name, cv_sections[name])
+                seen.add(name)
+        for name, content in cv_sections.items():
+            if name not in seen:
+                render_block(name, content)
+
+    def _format_work_experience_classic(self, doc: Document, section_content: str) -> None:
+        """WE block using Times and dark text (classic layout)."""
+        section_content = re.sub(r"\*\*([^*]+)\*\*", r"\1", section_content)
+        section_content = re.sub(r"\*([^*]+)\*", r"\1", section_content)
+        ink = RGBColor(0, 0, 0)
+        navy = RGBColor(26, 54, 93)
+        for para_text in section_content.split("\n"):
+            para_text = para_text.strip()
+            if not para_text:
+                continue
+            if any(k in para_text.upper() for k in ["WORK EXPERIENCE", "EXPERIENCE"]) and len(para_text) < 40:
+                continue
+            if para_text.startswith("-") or para_text.startswith("•") or para_text.startswith("*"):
+                bt = para_text.lstrip("- •*").strip()
+                para = doc.add_paragraph(bt, style="List Bullet")
+                para.paragraph_format.space_after = Pt(2)
+                for run in para.runs:
+                    run.font.name = "Times New Roman"
+                    run.font.size = Pt(11)
+                    run.font.color.rgb = ink
+            else:
+                para = doc.add_paragraph()
+                run = para.add_run(para_text)
+                run.font.name = "Times New Roman"
+                run.font.size = Pt(11)
+                run.font.bold = True
+                run.font.color.rgb = navy
+                para.paragraph_format.space_after = Pt(2)
     
     def format_to_text(self, cv_sections: Dict[str, str], output_path: str):
         """
@@ -463,7 +780,13 @@ class CVFormatter:
         
         print(f"CV saved to: {output_path}")
     
-    def format_to_pdf(self, cv_sections: Dict[str, str], output_path: str, candidate_name: str = "Candidate"):
+    def format_to_pdf(
+        self,
+        cv_sections: Dict[str, str],
+        output_path: str,
+        candidate_name: str = "Candidate",
+        document_style: str = "default",
+    ):
         """
         Format CV sections into a PDF document.
         First creates DOCX, then converts to PDF (requires external tool or library).
@@ -478,7 +801,7 @@ class CVFormatter:
         # Or use pandoc if available: pandoc input.docx -o output.pdf
         
         docx_path = output_path.replace('.pdf', '.docx')
-        self.format_to_docx(cv_sections, docx_path, candidate_name)
+        self.format_to_docx(cv_sections, docx_path, candidate_name, document_style=document_style)
         
         # Try to convert to PDF using pandoc if available
         try:
@@ -499,8 +822,14 @@ class CVFormatter:
             print(f"PDF conversion not available. DOCX saved at: {docx_path}")
             print("Note: Install pandoc (https://pandoc.org/installing.html) for PDF conversion.")
     
-    def format_cv(self, cv_sections: Dict[str, str], output_path: str, 
-                  format_type: str = "docx", candidate_name: str = "Candidate"):
+    def format_cv(
+        self,
+        cv_sections: Dict[str, str],
+        output_path: str,
+        format_type: str = "docx",
+        candidate_name: str = "Candidate",
+        document_style: str = "default",
+    ):
         """
         Format CV to specified format.
         
@@ -509,12 +838,13 @@ class CVFormatter:
             output_path: Path to save the file
             format_type: Output format ('docx', 'txt', 'pdf')
             candidate_name: Name of the candidate
+            document_style: Layout preset for docx/pdf only (ignored for txt)
         """
         if format_type.lower() == "docx":
-            self.format_to_docx(cv_sections, output_path, candidate_name)
+            self.format_to_docx(cv_sections, output_path, candidate_name, document_style=document_style)
         elif format_type.lower() == "txt":
             self.format_to_text(cv_sections, output_path)
         elif format_type.lower() == "pdf":
-            self.format_to_pdf(cv_sections, output_path, candidate_name)
+            self.format_to_pdf(cv_sections, output_path, candidate_name, document_style=document_style)
         else:
             raise ValueError(f"Unsupported format: {format_type}")

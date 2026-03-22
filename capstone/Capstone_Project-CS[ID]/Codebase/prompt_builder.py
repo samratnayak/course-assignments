@@ -235,6 +235,9 @@ class PromptBuilder:
             "'It should be noted', 'Note that', or any similar explanatory phrases.\n"
             "Do NOT include any analysis, observations, or meta-commentary about the candidate's information.\n"
             "Do NOT include any sentences about experience, qualifications, skills, or job requirements.\n"
+            "NEVER output numbered lists (1. 2. 3.) of tips, optimization steps, or references to "
+            "'Target Job Requirements' or tailoring the CV. NEVER paste Skills:/Tools:/Soft Skills: blocks here — "
+            "those belong in other sections.\n"
             "The section is already titled 'Personal Information', so do NOT add any subheadings.\n"
             "Format as plain text (NO headings, NO labels, NO placeholders, NO explanations, just the actual information):\n"
             "Name\n"
@@ -287,7 +290,11 @@ class PromptBuilder:
         """Get instructions for Education section."""
         return (
             "List education CONCISELY. Include: Degree, Institution, Year, GPA (if notable). "
-            "Maximum 2-3 entries.\n\n"
+            "Maximum 2-3 entries.\n"
+            "CRITICAL: Output ONLY degree/institution lines and facts. Do NOT add any paragraph explaining "
+            "how the section was tailored, aligned with the job, or why items were emphasized. "
+            "Do NOT write phrases like 'The provided education information has been tailored' or "
+            "'key skills required for the target job'.\n\n"
         )
     
     @staticmethod

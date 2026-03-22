@@ -482,6 +482,7 @@ Generate the optimized resume:"""
         # Special handling for Personal Information
         if section_name == "Personal Information":
             prompt += "CRITICAL: Output ONLY the actual contact information. Do NOT include any headings, subheadings, labels, or placeholder text.\n"
+            prompt += "NEVER output numbered lists of instructions, optimization tips, Skills:/Tools:/Soft Skills: blocks, or text about Target Job Requirements.\n"
             prompt += "NEVER include the text 'Contact Information' or 'Contact Information:' anywhere in your output.\n"
             prompt += "NEVER include placeholder text like '[LinkedIn URL if provided]', '[Address if provided]', or any similar placeholders.\n"
             prompt += "The section is already titled 'Personal Information', so do NOT add any subheadings.\n"
@@ -500,6 +501,12 @@ Generate the optimized resume:"""
         # Special handling for Certifications
         if section_name == "Certifications":
             prompt += "List ONLY the certifications provided. Do NOT include the candidate's name.\n\n"
+        
+        if section_name == "Education":
+            prompt += (
+                "CRITICAL: Output ONLY education facts (degrees, institutions, dates, GPA). "
+                "Do NOT add paragraphs explaining how the section was tailored to the job or target requirements.\n\n"
+            )
         
         prompt += "Candidate Information:\n"
         for key, value in user_data.items():

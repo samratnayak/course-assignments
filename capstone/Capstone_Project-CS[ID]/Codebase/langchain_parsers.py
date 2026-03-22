@@ -57,6 +57,7 @@ else:
         print(f"   Error: {LANGCHAIN_ERROR}")
         print(f"   To install: pip install langchain langchain-community pydantic")
     class BaseModel:
+        """Stub when LangChain/Pydantic imports fail; only satisfies type hints above."""
         pass
 
 

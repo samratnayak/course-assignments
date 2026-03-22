@@ -29,6 +29,7 @@ def _set_cell_shading(cell, fill_hex: str) -> None:
 
 
 def _set_paragraph_bottom_border(paragraph, color: str = "A0A0A0", size: str = "4") -> None:
+    """Draw a single bottom rule on the paragraph (OOXML ``w:pBdr``). Used for classic section headers."""
     p_pr = paragraph._element.get_or_add_pPr()
     p_bdr = OxmlElement("w:pBdr")
     bottom = OxmlElement("w:bottom")
@@ -476,6 +477,7 @@ class CVFormatter:
         spacing_para.paragraph_format.space_after = Pt(4)
 
     def _sidebar_column_heading(self, cell, title: str) -> None:
+        """Uppercase section label plus a short rule (sidebar column)."""
         p = cell.add_paragraph()
         r = p.add_run(title.upper())
         r.font.bold = True
@@ -498,6 +500,7 @@ class CVFormatter:
         font_name: str = "Calibri",
         body_color: RGBColor = None,
     ) -> None:
+        """Append plain section lines (not Work Experience). For Personal Information, strips contact headings/placeholders (same rules as default layout)."""
         if body_color is None:
             body_color = RGBColor(40, 55, 70)
         section_content = self._remove_quotes_from_text(section_content)
@@ -686,9 +689,13 @@ class CVFormatter:
             "Languages",
         ]
         seen = set()
+        # Contact lines already rendered under the centered name; do not repeat as a section.
+        seen.add("Personal Information")
         ink = RGBColor(0, 0, 0)
 
         def render_block(section_name: str, section_content: str) -> None:
+            if section_name == "Personal Information":
+                return
             hp = doc.add_paragraph()
             hr = hp.add_run(section_name.upper())
             hr.font.name = "Times New Roman"
@@ -702,8 +709,6 @@ class CVFormatter:
                 self._format_work_experience_classic(doc, section_content)
             else:
                 section_content = self._remove_quotes_from_text(section_content)
-                if section_name == "Personal Information":
-                    return
                 for para_text in section_content.split("\n"):
                     para_text = para_text.strip()
                     if not para_text:

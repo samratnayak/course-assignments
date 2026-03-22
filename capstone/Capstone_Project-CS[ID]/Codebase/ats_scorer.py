@@ -7,7 +7,7 @@ This module calculates ATS compatibility scores for resumes based on:
 - Keyword presence
 """
 
-from typing import Dict, List
+from typing import Dict, List, Optional
 from embedding_model import EmbeddingModel
 from skill_matcher import SkillMatcher
 import warnings
@@ -20,16 +20,24 @@ class ATSScorer:
     Class for calculating ATS compatibility scores.
     """
     
-    def __init__(self, embedding_model: EmbeddingModel, skill_matcher: SkillMatcher):
+    def __init__(
+        self,
+        embedding_model: EmbeddingModel,
+        skill_matcher: SkillMatcher,
+        keyword_lexicon: Optional[List[str]] = None,
+    ):
         """
         Initialize ATSScorer.
         
         Args:
             embedding_model: EmbeddingModel instance
             skill_matcher: SkillMatcher instance
+            keyword_lexicon: Optional extra phrases to treat as keywords when scanning
+                resume text (e.g. domain terms not always present in parsed JD keywords).
         """
         self.embedding_model = embedding_model
         self.skill_matcher = skill_matcher
+        self._keyword_lexicon = list(keyword_lexicon) if keyword_lexicon else []
         
         # ATS Score weights (adjusted to favor higher scores)
         # Increased weight on semantic similarity and skill match which tend to score higher
@@ -37,30 +45,35 @@ class ATSScorer:
         self.weight_skill_match = 0.35
         self.weight_keyword_presence = 0.20
     
-    def extract_keywords(self, text: str) -> List[str]:
+    @staticmethod
+    def _dedupe_keywords_lower(keywords: List[str]) -> List[str]:
+        """Preserve first-seen order; drop empty strings and case-insensitive duplicates."""
+        seen = set()
+        out: List[str] = []
+        for kw in keywords:
+            k = kw.lower().strip()
+            if k and k not in seen:
+                seen.add(k)
+                out.append(k)
+        return out
+
+    def extract_keywords(self, text: str, reference_keywords: List[str]) -> List[str]:
         """
-        Extract keywords from text (simple approach - can be enhanced).
-        
+        Return reference keywords (and optional lexicon terms) that appear in text.
+
+        Matching is driven by the job's keyword list (and optional ``keyword_lexicon``)
+        instead of a fixed tech vocabulary, so scores adapt to the role and industry.
+
         Args:
-            text: Text to extract keywords from
-            
+            text: Text to scan (e.g. resume body)
+            reference_keywords: Keywords to look for, typically from the job description
+
         Returns:
-            List of keywords
+            Subset of reference keywords (plus lexicon hits) found in text
         """
-        # Common technical keywords
-        common_keywords = [
-            "python", "java", "javascript", "sql", "machine learning", "ai", "deep learning",
-            "data science", "cloud", "aws", "azure", "docker", "kubernetes", "git",
-            "agile", "scrum", "api", "rest", "microservices", "react", "node.js",
-            "tensorflow", "pytorch", "nlp", "computer vision", "big data", "hadoop",
-            "mongodb", "postgresql", "mysql", "redis", "elasticsearch", "spark",
-            "ci/cd", "jenkins", "terraform", "ansible", "linux", "bash"
-        ]
-        
         text_lower = text.lower()
-        found_keywords = [kw for kw in common_keywords if kw in text_lower]
-        
-        return found_keywords
+        lexicon = self._dedupe_keywords_lower(reference_keywords + self._keyword_lexicon)
+        return [kw for kw in lexicon if kw in text_lower]
     
     def calculate_keyword_presence(self, resume_text: str, jd_keywords: List[str]) -> float:
         """
@@ -76,26 +89,21 @@ class ATSScorer:
         if not jd_keywords:
             return 1.0
         
-        resume_keywords = self.extract_keywords(resume_text)
+        resume_keywords = self.extract_keywords(resume_text, jd_keywords)
         resume_keywords_lower = [kw.lower() for kw in resume_keywords]
         jd_keywords_lower = [kw.lower() for kw in jd_keywords]
+        jd_keyword_set = set(jd_keywords_lower)
         
-        # Count matching keywords (exact match)
-        matching_keywords = set(resume_keywords_lower) & set(jd_keywords_lower)
+        # Count matching keywords (exact match on JD terms)
+        matching_keywords = set(resume_keywords_lower) & jd_keyword_set
         
-        # Also check for partial matches (e.g., "java" matches "java programming")
-        resume_text_lower = resume_text.lower()
-        partial_matches = 0
-        for jd_kw in jd_keywords_lower:
-            if jd_kw in matching_keywords:
-                continue  # Already counted
-            # Check if keyword appears in resume text (partial match)
-            if jd_kw in resume_text_lower:
-                partial_matches += 1
+        # Partial credit: lexicon-only hits (not in parsed JD list) still support relevance
+        lexicon_only = set(resume_keywords_lower) - jd_keyword_set
+        partial_matches = len(lexicon_only)
         
-        # Calculate score: exact matches + partial matches (weighted)
+        # Calculate score: JD matches + half-weight extra lexicon matches
         exact_count = len(matching_keywords)
-        total_matches = exact_count + (partial_matches * 0.5)  # Partial matches count as 0.5
+        total_matches = exact_count + (partial_matches * 0.5)
         presence_score = min(1.0, total_matches / len(jd_keywords)) if jd_keywords else 0.0
         
         # Apply a boost to make scores more lenient

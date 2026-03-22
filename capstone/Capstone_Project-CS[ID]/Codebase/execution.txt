@@ -1,3 +1,6 @@
+# With multiple files and job description
+python main.py input/profile1.txt input/profile2.pdf -j job_description.txt --api-key "your-api-key" -o output/cv_output.docx -f docx
+
 # Basic execution (requires OPENAI_API_KEY environment variable) with input file containing personal information & job description
 python main.py input/sample_profile.txt
 
@@ -5,13 +8,13 @@ python main.py input/sample_profile.txt
 python main.py input/sample_profile.txt -o output/cv_output.docx
 
 # With multiple input files
-# python main.py input/file1.txt input/file2.pdf input/file3.txt -o output/cv_output.docx -f docx
+python main.py input/file1.txt input/file2.pdf input/file3.txt -o output/cv_output.docx -f docx
 
 # With OpenAI API key as argument
-# python main.py input/sample_profile.txt --api-key "your-api-key" -o output/cv_output.docx -f docx
+python main.py input/sample_profile.txt --api-key "your-api-key" -o output/cv_output.docx -f docx
 
 # With job description
-# python main.py input/sample_profile.txt -j job_description.txt --api-key "your-api-key" -o output/cv_output.docx -f docx
+python main.py input/sample_profile.txt -j job_description.txt --api-key "your-api-key" -o output/cv_output.docx -f docx
 
 # With multiple files and job description
-# python main.py input/profile1.txt input/profile2.pdf -j job_description.txt --api-key "your-api-key" -o output/cv_output.docx -f docx
+python main.py input/profile1.txt input/profile2.pdf -j job_description.txt --api-key "your-api-key" -o output/cv_output.docx -f docx

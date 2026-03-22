@@ -34,6 +34,7 @@ _STYLE_DEFS: List[Dict[str, str]] = [
 
 
 def get_style_samples_dir(codebase_dir: str) -> str:
+    """Directory used for layout preview DOCX files (``output/style_samples``)."""
     return os.path.join(codebase_dir, "output", "style_samples")
 
 
@@ -74,6 +75,7 @@ def resolve_document_style(raw: str, current_id: str) -> Optional[str]:
 
 
 def label_for_style(style_id: str) -> str:
+    """Human-readable menu label for a layout id, or ``style_id`` if unknown."""
     for row in _STYLE_DEFS:
         if row["id"] == style_id:
             return row["label"]

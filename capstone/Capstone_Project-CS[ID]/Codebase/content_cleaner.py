@@ -55,6 +55,10 @@ class ContentCleaner:
         if section_name == "Languages":
             content = ContentCleaner._clean_languages_section(content)
         
+        # Step 2c: Education — strip trailing LLM commentary about tailoring / target job
+        if section_name == "Education":
+            content = ContentCleaner._clean_education_section(content)
+        
         # Step 3: Remove markdown and quotes
         content = ContentCleaner._remove_markdown_and_quotes(content)
         
@@ -126,6 +130,51 @@ class ContentCleaner:
         return cleaned_content
     
     @staticmethod
+    def _is_pi_instruction_or_misplaced_section_line(line: str) -> bool:
+        """
+        True for numbered optimization tips or misplaced Skills/Tools headers (not contact lines).
+        """
+        if not line:
+            return False
+        low = line.lower()
+        # Other sections' headers leaked into Personal Information
+        if re.match(r"^(skills|tools|soft skills)\s*:", low):
+            return True
+        m = re.match(r"^(\d+)[\.\)]\s*(.+)$", line.strip())
+        if not m:
+            return False
+        rest = m.group(2).lower()
+        instruction_markers = (
+            "incorporate",
+            "highlight",
+            "emphasize",
+            "ensure",
+            "target job",
+            "job requirements",
+            "showcase",
+            "skills section",
+            "fit for the job",
+            "listed skill",
+            "candidate's information",
+            "candidate information",
+            "tailor",
+            "align",
+            "integrate",
+            "leverage",
+            "optimize",
+            "mention",
+            "reference",
+            "keywords from",
+            "professional summary",
+        )
+        if any(k in rest for k in instruction_markers):
+            return True
+        # Long numbered line about job/CV editing (not an address like "1. Main St")
+        if len(line) > 70 and ("job" in rest or "section" in rest or "skill" in rest):
+            return True
+        return False
+
+    @staticmethod
     def _clean_personal_information(content: str) -> str:
         """
         Clean Personal Information section - remove Contact Information, placeholders, and LLM reasoning.
@@ -136,7 +185,13 @@ class ContentCleaner:
         Returns:
             Cleaned content
         """
-        lines = content.split('\n')
+        lines = content.split("\n")
+        # Drop misplaced section dumps and numbered instruction lists (everything from first bad line on)
+        for i, line in enumerate(lines):
+            if ContentCleaner._is_pi_instruction_or_misplaced_section_line(line.strip()):
+                lines = lines[:i]
+                break
+
         filtered_lines = []
         
         # Patterns that indicate LLM reasoning/explanation text
@@ -232,6 +287,45 @@ class ContentCleaner:
         
         return '\n'.join(filtered_lines).strip()
     
+    @staticmethod
+    def _is_education_meta_commentary_line(line: str) -> bool:
+        """True if this line begins LLM meta-text about tailoring the section to the job (not CV content)."""
+        if len(line) < 50:
+            return False
+        low = line.lower()
+        if low.startswith("the provided ") and any(
+            p in low
+            for p in (
+                "tailored",
+                "align",
+                "target job",
+                "education information",
+                "education section",
+                "emphasizing",
+            )
+        ):
+            return True
+        if "tailored to align with the target job" in low:
+            return True
+        if "key skills required for the target job" in low:
+            return True
+        if low.startswith("additionally,") and "target job" in low:
+            return True
+        if low.startswith("furthermore,") and "target job" in low:
+            return True
+        if low.startswith("this section ") and "tailored" in low:
+            return True
+        return False
+
+    @staticmethod
+    def _clean_education_section(content: str) -> str:
+        """Drop trailing paragraphs that explain how education was aligned with the job (not factual entries)."""
+        lines = content.split("\n")
+        for i, line in enumerate(lines):
+            if ContentCleaner._is_education_meta_commentary_line(line.strip()):
+                return "\n".join(lines[:i]).rstrip()
+        return content
+
     @staticmethod
     def _remove_markdown_and_quotes(content: str) -> str:
         """

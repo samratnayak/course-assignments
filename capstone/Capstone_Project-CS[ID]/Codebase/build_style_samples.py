@@ -51,6 +51,7 @@ _GIBBERISH = {
 
 
 def main() -> None:
+    """Emit one sample DOCX per layout into ``output/style_samples`` for UI preview."""
     base = os.path.dirname(os.path.abspath(__file__))
     out_dir = get_style_samples_dir(base)
     os.makedirs(out_dir, exist_ok=True)
